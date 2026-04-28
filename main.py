@@ -1,29 +1,18 @@
-from fastapi import FastAPI
-from engine import get_data, generate_signal
-
-app = FastAPI()
-
-signals = []
-
-@app.get("/")
-def home():
-    return {"status": "Signal engine running"}
-
 @app.get("/run")
 def run_engine():
-    df = get_data("EUR/USD", "15min", 50)
+    try:
+        df = get_data("EUR/USD", "15min", 50)
 
-    if df is None:
-        return {"error": "No market data"}
+        if df is None:
+            return {"error": "No market data"}
 
-    signal = generate_signal(df)
+        signal = generate_signal(df)
 
-    if signal:
-        signals.append(signal)
-        return {"new_signal": signal}
+        if signal:
+            signals.append(signal)
+            return {"new_signal": signal}
 
-    return {"status": "no signal"}
+        return {"status": "no signal"}
 
-@app.get("/signals")
-def get_signals():
-    return signals
+    except Exception as e:
+        return {"error": str(e)}
