@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from engine import get_data, generate_signal
 
-# ✅ THIS MUST BE AT THE TOP
 app = FastAPI()
 
 signals = []
