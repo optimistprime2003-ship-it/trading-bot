@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from engine import get_data, generate_signal
+from engine import generate_signals
 import threading
 import time
 import requests
@@ -8,37 +8,36 @@ app = FastAPI()
 
 signals = []
 
-BASE_URL = " https://trading-signal-bot-7bb3.onrender.com" # 🔥 replace this
+# 🔥 REPLACE THIS WITH YOUR REAL RENDER LINK
+BASE_URL = "https://YOUR-APP-NAME.onrender.com"
+
 
 @app.get("/")
 def home():
-    return {"status": "Auto bot running"}
+    return {"status": "Auto bot running (advanced)"}
+
 
 @app.get("/run")
 def run_engine():
     try:
-        df = get_data("EUR/USD", "15min", 50)
+        new_signals = generate_signals()
 
-        if df is None:
-            return {"error": "No market data"}
-
-        signal = generate_signal(df)
-
-        if signal:
-            signals.append(signal)
-            return {"new_signal": signal}
+        if new_signals:
+            signals.extend(new_signals)
+            return {"new_signals": new_signals}
 
         return {"status": "no signal"}
 
     except Exception as e:
         return {"error": str(e)}
 
+
 @app.get("/signals")
 def get_signals():
     return signals
 
 
-# 🔥 AUTO LOOP
+# 🔥 AUTO BOT LOOP (runs every 5 minutes)
 def auto_runner():
     while True:
         try:
@@ -46,8 +45,8 @@ def auto_runner():
         except:
             pass
 
-        time.sleep(300)  # runs every 5 minutes
+        time.sleep(300)  # 5 minutes
 
 
-# 🔥 START BACKGROUND THREAD
+# 🔥 START AUTO BOT
 threading.Thread(target=auto_runner, daemon=True).start()
