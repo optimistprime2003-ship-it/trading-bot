@@ -1,10 +1,11 @@
 import requests
 import pandas as pd
 
-API_KEY = "d93af08b103e43c99034dd6362a239d3"
+API_KEY = "PUT_YOUR_REAL_API_KEY_HERE"
 
 def get_data(symbol="EUR/USD", interval="15min", output=50):
     url = "https://api.twelvedata.com/time_series"
+
     params = {
         "symbol": symbol,
         "interval": interval,
@@ -18,8 +19,13 @@ def get_data(symbol="EUR/USD", interval="15min", output=50):
         return None
 
     df = pd.DataFrame(response["values"])
-    df = df.astype(float)
-    df = df[::-1]  # oldest → newest
+
+    # convert columns to float
+    for col in ["open", "high", "low", "close"]:
+        df[col] = df[col].astype(float)
+
+    df = df[::-1]  # reverse (old → new)
+
     return df
 
 
