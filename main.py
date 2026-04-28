@@ -1,13 +1,18 @@
 from fastapi import FastAPI
 from engine import get_data, generate_signal
+import threading
+import time
+import requests
 
 app = FastAPI()
 
 signals = []
 
+BASE_URL = "https://YOUR-APP-NAME.onrender.com"  # 🔥 replace this
+
 @app.get("/")
 def home():
-    return {"status": "Signal engine running"}
+    return {"status": "Auto bot running"}
 
 @app.get("/run")
 def run_engine():
@@ -31,3 +36,18 @@ def run_engine():
 @app.get("/signals")
 def get_signals():
     return signals
+
+
+# 🔥 AUTO LOOP
+def auto_runner():
+    while True:
+        try:
+            requests.get(BASE_URL + "/run")
+        except:
+            pass
+
+        time.sleep(300)  # runs every 5 minutes
+
+
+# 🔥 START BACKGROUND THREAD
+threading.Thread(target=auto_runner, daemon=True).start()
