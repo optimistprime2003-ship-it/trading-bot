@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 
-API_KEY = "PUT_YOUR_REAL_API_KEY_HERE"
+API_KEY = "d93af08b103e43c99034dd6362a239d3"
 
 def get_data(symbol="EUR/USD", interval="15min", output=50):
     url = "https://api.twelvedata.com/time_series"
