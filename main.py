@@ -1,3 +1,15 @@
+from fastapi import FastAPI
+from engine import get_data, generate_signal
+
+# ✅ THIS MUST BE AT THE TOP
+app = FastAPI()
+
+signals = []
+
+@app.get("/")
+def home():
+    return {"status": "Signal engine running"}
+
 @app.get("/run")
 def run_engine():
     try:
@@ -16,3 +28,7 @@ def run_engine():
 
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/signals")
+def get_signals():
+    return signals
