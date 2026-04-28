@@ -9,7 +9,7 @@ app = FastAPI()
 signals = []
 
 # 🔥 REPLACE THIS WITH YOUR REAL RENDER LINK
-BASE_URL = "https://YOUR-APP-NAME.onrender.com"
+BASE_URL = "https://trading-signal-bot-7bb3.onrender.com"
 
 
 @app.get("/")
