@@ -8,7 +8,7 @@ app = FastAPI()
 
 signals = []
 
-BASE_URL = "https://YOUR-APP-NAME.onrender.com"  # 🔥 replace this
+BASE_URL = " https://trading-signal-bot-7bb3.onrender.com" # 🔥 replace this
 
 @app.get("/")
 def home():
