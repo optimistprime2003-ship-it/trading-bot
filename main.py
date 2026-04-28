@@ -1,18 +1,29 @@
 from fastapi import FastAPI
+from engine import get_data, generate_signal
 
 app = FastAPI()
 
 signals = []
 
-@app.post("/signal")
-def add_signal(signal: dict):
-    signals.append(signal)
-    return {"status": "saved"}
+@app.get("/")
+def home():
+    return {"status": "Signal engine running"}
+
+@app.get("/run")
+def run_engine():
+    df = get_data("EUR/USD", "15min", 50)
+
+    if df is None:
+        return {"error": "No market data"}
+
+    signal = generate_signal(df)
+
+    if signal:
+        signals.append(signal)
+        return {"new_signal": signal}
+
+    return {"status": "no signal"}
 
 @app.get("/signals")
 def get_signals():
     return signals
-
-@app.get("/")
-def home():
-    return {"status": "Trading bot is live"}
