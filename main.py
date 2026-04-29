@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from engine import generate_signals
 import threading
 import time
@@ -6,15 +7,24 @@ import requests
 
 app = FastAPI()
 
+# ✅ FIX CORS (VERY IMPORTANT)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 signals = []
 
-# 🔥 REPLACE THIS WITH YOUR REAL RENDER LINK
+# 🔴 REPLACE WITH YOUR REAL RENDER URL
 BASE_URL = "https://trading-signal-bot-7bb3.onrender.com"
 
 
 @app.get("/")
 def home():
-    return {"status": "Auto bot running (advanced)"}
+    return {"status": "Bot running"}
 
 
 @app.get("/run")
@@ -34,10 +44,10 @@ def run_engine():
 
 @app.get("/signals")
 def get_signals():
-    return signals
+    return signals if signals else []
 
 
-# 🔥 AUTO BOT LOOP (runs every 5 minutes)
+# 🔄 AUTO RUN EVERY 5 MINUTES
 def auto_runner():
     while True:
         try:
@@ -45,8 +55,7 @@ def auto_runner():
         except:
             pass
 
-        time.sleep(300)  # 5 minutes
+        time.sleep(300)
 
 
-# 🔥 START AUTO BOT
 threading.Thread(target=auto_runner, daemon=True).start()
