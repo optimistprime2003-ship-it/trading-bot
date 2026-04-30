@@ -1,7 +1,7 @@
 import requests
 import datetime
 
-API_KEY = "d93af08b103e43c99034dd6362a239d3"
+API_KEY = "YOUR_TWELVEDATA_API_KEY"
 
 PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "GBP/JPY", "AUD/USD", "EUR/JPY"]
 
@@ -28,7 +28,7 @@ def get_candles(pair, interval, limit=100):
     return candles
 
 
-# 🔹 EMA CALCULATION
+# 🔹 EMA
 def calculate_ema(prices, period):
     ema = []
     k = 2 / (period + 1)
@@ -42,7 +42,7 @@ def calculate_ema(prices, period):
     return ema
 
 
-# 🔹 PIN BAR DETECTION
+# 🔹 PIN BAR
 def is_bullish_pin(c):
     body = abs(c["close"] - c["open"])
     lower_wick = min(c["open"], c["close"]) - c["low"]
@@ -55,7 +55,7 @@ def is_bearish_pin(c):
     return upper_wick >= 2 * body and c["close"] < c["open"]
 
 
-# 🔥 MAIN STRATEGY
+# 🔥 GENERATE SIGNALS
 def generate_signals():
     signals = []
 
@@ -83,15 +83,12 @@ def generate_signals():
 
             last = m15[-1]
 
-            # TREND
             buy_trend = ema8_m15[-1] > ema20_m15[-1] > ema50_m15[-1] and ema8_h1[-1] > ema20_h1[-1] > ema50_h1[-1]
             sell_trend = ema8_m15[-1] < ema20_m15[-1] < ema50_m15[-1] and ema8_h1[-1] < ema20_h1[-1] < ema50_h1[-1]
 
-            # AVOID FLAT MARKET
             if abs(ema8_m15[-1] - ema20_m15[-1]) < 0.0003:
                 continue
 
-            # EMA TOUCH (PULLBACK)
             ema_touch = (
                 abs(last["low"] - ema8_m15[-1]) < 0.0005 or
                 abs(last["low"] - ema20_m15[-1]) < 0.0005 or
@@ -101,7 +98,6 @@ def generate_signals():
 
             pip = 0.01 if "JPY" in pair else 0.0001
 
-            # BUY
             if buy_trend and is_bullish_pin(last) and ema_touch:
                 entry = last["high"] + 2 * pip
                 sl = last["low"] - 2 * pip
@@ -119,7 +115,6 @@ def generate_signals():
                     "status": "ACTIVE"
                 })
 
-            # SELL
             elif sell_trend and is_bearish_pin(last) and ema_touch:
                 entry = last["low"] - 2 * pip
                 sl = last["high"] + 2 * pip
@@ -144,7 +139,7 @@ def generate_signals():
     return signals
 
 
-# 🔥 TRACK TP / SL / EXPIRY
+# 🔥 TRACK STATUS
 def update_signal_status(signals):
     updated = []
 
@@ -185,9 +180,10 @@ def update_signal_status(signals):
             updated.append(s)
 
     return updated
-    def backtest_strategy(pair="EUR/USD"):
-    results = []
 
+
+# 🔥 BACKTEST
+def backtest_strategy(pair="EUR/USD"):
     m15 = get_candles(pair, TIMEFRAME_ENTRY, 500)
     h1 = get_candles(pair, TIMEFRAME_TREND, 500)
 
@@ -247,7 +243,6 @@ def update_signal_status(signals):
         if not entry:
             continue
 
-        # 🔁 simulate forward candles
         outcome = None
 
         for j in range(i + 1, i + 10):
@@ -272,12 +267,10 @@ def update_signal_status(signals):
         if outcome == "TP":
             wins += 1
             total_r += 2
-            results.append("TP")
 
         elif outcome == "SL":
             losses += 1
             total_r -= 1
-            results.append("SL")
 
     total = wins + losses
     win_rate = (wins / total * 100) if total > 0 else 0
