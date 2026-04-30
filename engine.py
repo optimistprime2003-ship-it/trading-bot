@@ -111,7 +111,7 @@ def generate_signals():
                 continue
 
             # 🔥 PIN BAR
-            if buy_trend and is_bullish_pin(last):
+            if buy_trend and is_bullish_pin(last) and ema_touch:
                 entry = last["high"] + 0.0002
                 sl = last["low"] - 0.0002
                 tp = entry + (entry - sl) * 2
