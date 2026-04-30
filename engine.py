@@ -128,7 +128,7 @@ def generate_signals():
                     "status": "ACTIVE"
                 })
 
-            elif sell_trend and is_bearish_pin(last):
+            elif sell_trend and is_bearish_pin(last) and ema_touch:
                 entry = last["low"] - 0.0002
                 sl = last["high"] + 0.0002
                 tp = entry - (sl - entry) * 2
