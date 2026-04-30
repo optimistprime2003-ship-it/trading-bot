@@ -1,96 +1,151 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Trading Signals</title>
+  <title>Trading Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
       background: #0f172a;
       color: white;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       margin: 0;
-      padding: 0;
-      text-align: center;
     }
 
-    h1 {
-      margin: 20px 0;
+    h2 {
+      margin: 10px;
     }
 
-    .container {
+    .section {
       padding: 10px;
     }
 
     .card {
       background: #1e293b;
-      margin: 10px;
-      padding: 15px;
+      padding: 12px;
+      margin: 8px;
       border-radius: 10px;
-      text-align: left;
     }
 
-    .buy {
-      border-left: 5px solid #22c55e;
+    .buy { border-left: 5px solid #22c55e; }
+    .sell { border-left: 5px solid #ef4444; }
+
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
     }
 
-    .sell {
-      border-left: 5px solid #ef4444;
-    }
-
-    p {
-      margin: 5px 0;
+    .stat-box {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 8px;
+      width: 22%;
     }
   </style>
 </head>
 
 <body>
 
-<h1>📊 Live Trading Signals</h1>
+<!-- 📊 STATS -->
+<div class="section">
+  <h2>📊 Performance</h2>
+  <div class="stats">
+    <div class="stat-box"><p>Win Rate</p><h3 id="win"></h3></div>
+    <div class="stat-box"><p>Wins</p><h3 id="wins"></h3></div>
+    <div class="stat-box"><p>Losses</p><h3 id="losses"></h3></div>
+    <div class="stat-box"><p>Total</p><h3 id="total"></h3></div>
+  </div>
+</div>
 
-<div class="container" id="signals"></div>
+<!-- 📈 LIVE SIGNALS -->
+<div class="section">
+  <h2>📈 Live Signals</h2>
+  <div id="signals"></div>
+</div>
+
+<!-- 📜 HISTORY -->
+<div class="section">
+  <h2>📜 Trade History</h2>
+  <div id="history"></div>
+</div>
 
 <script>
-const API = "https://trading-signal-bot-7bb3.onrender.com/signals";
+const BASE = "https://trading-signal-bot-7bb3.onrender.com";
 
-async function loadSignals() {
-  try {
-    const res = await fetch(API);
-    const data = await res.json();
+// 🔄 LOAD STATS
+async function loadStats() {
+  const res = await fetch(BASE + "/stats");
+  const data = await res.json();
 
-    const container = document.getElementById("signals");
-    container.innerHTML = "";
-
-    if (!data || data.length === 0) {
-      container.innerHTML = "<p>No signals yet</p>";
-      return;
-    }
-
-    data.forEach(signal => {
-      const div = document.createElement("div");
-
-      div.className = "card " + (signal.signal === "BUY" ? "buy" : "sell");
-
-      div.innerHTML = `
-  <h3>${signal.pair} - ${signal.signal}</h3>
-  <p><b>Type:</b> ${signal.type}</p>
-  <p><b>Entry:</b> ${signal.entry}</p>
-  <p><b>SL:</b> ${signal.sl}</p>
-  <p><b>TP:</b> ${signal.tp}</p>
-  <p><b>Time:</b> ${signal.time}</p>
-  <p><b>Expiry:</b> ${signal.expiry}</p>
-`;
-
-      container.appendChild(div);
-    });
-
-  } catch (err) {
-    document.getElementById("signals").innerHTML = "Error loading signals";
-  }
+  document.getElementById("win").innerText = data.win_rate + "%";
+  document.getElementById("wins").innerText = data.wins;
+  document.getElementById("losses").innerText = data.losses;
+  document.getElementById("total").innerText = data.total;
 }
 
-setInterval(loadSignals, 10000);
+// 🔄 LOAD SIGNALS
+async function loadSignals() {
+  const res = await fetch(BASE + "/signals");
+  const data = await res.json();
+
+  const container = document.getElementById("signals");
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML = "<p>No active signals</p>";
+    return;
+  }
+
+  data.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "card " + (s.signal === "BUY" ? "buy" : "sell");
+
+    div.innerHTML = `
+      <h3>${s.pair} - ${s.signal}</h3>
+      <p>Type: ${s.type}</p>
+      <p>Entry: ${s.entry}</p>
+      <p>SL: ${s.sl}</p>
+      <p>TP: ${s.tp}</p>
+      <p>Status: ${s.status}</p>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// 🔄 LOAD HISTORY
+async function loadHistory() {
+  const res = await fetch(BASE + "/history");
+  const data = await res.json();
+
+  const container = document.getElementById("history");
+  container.innerHTML = "";
+
+  data.slice(-10).reverse().forEach(h => {
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <h4>${h.pair} - ${h.signal}</h4>
+      <p>Status: ${h.status}</p>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// 🔄 AUTO REFRESH
+setInterval(() => {
+  loadStats();
+  loadSignals();
+  loadHistory();
+}, 10000);
+
+// INITIAL LOAD
+loadStats();
 loadSignals();
+loadHistory();
 </script>
 
 </body>
