@@ -131,9 +131,11 @@ tp = entry + (entry - sl) * 2
                 })
 
             elif sell_trend and is_bearish_pin(last) and ema_touch:
-                entry = last["low"] - 0.0002
-                sl = last["high"] + 0.0002
-                tp = entry - (sl - entry) * 2
+                pip = 0.01 if "JPY" in pair else 0.0001
+
+entry = last["low"] - 2 * pip
+sl = last["high"] + 2 * pip
+tp = entry - (sl - entry) * 2
 
                 signals.append({
                     "pair": pair,
