@@ -99,5 +99,8 @@ def auto_runner():
 
 
 threading.Thread(target=auto_runner, daemon=True).start()
+@app.get("/backtest")
+def run_backtest(pair: str = "EUR/USD"):
+    return backtest_strategy(pair)
 
 
