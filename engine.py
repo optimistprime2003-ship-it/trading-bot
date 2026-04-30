@@ -1,7 +1,7 @@
 import requests
 import datetime
 
-API_KEY = "d93af08b103e43c99034dd6362a239d3"
+API_KEY = "YOUR_TWELVEDATA_API_KEY"
 
 PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "GBP/JPY", "AUD/USD", "EUR/JPY"]
 
@@ -9,7 +9,6 @@ TIMEFRAME_ENTRY = "15min"
 TIMEFRAME_TREND = "1h"
 
 
-# 🔹 FETCH CANDLES
 def get_candles(pair, interval, limit=100):
     url = f"https://api.twelvedata.com/time_series?symbol={pair}&interval={interval}&outputsize={limit}&apikey={API_KEY}"
     data = requests.get(url).json()
@@ -28,7 +27,6 @@ def get_candles(pair, interval, limit=100):
     return candles
 
 
-# 🔹 EMA CALCULATION
 def calculate_ema(prices, period):
     ema = []
     k = 2 / (period + 1)
@@ -42,24 +40,20 @@ def calculate_ema(prices, period):
     return ema
 
 
-# 🔹 PIN BAR DETECTION
 def is_bullish_pin(c):
     body = abs(c["close"] - c["open"])
     lower_wick = min(c["open"], c["close"]) - c["low"]
     total = c["high"] - c["low"]
-
-    return lower_wick >= 2 * body and (c["close"] > c["open"]) and (c["close"] > c["low"] + 0.7 * total)
+    return lower_wick >= 2 * body and c["close"] > c["open"]
 
 
 def is_bearish_pin(c):
     body = abs(c["close"] - c["open"])
     upper_wick = c["high"] - max(c["open"], c["close"])
     total = c["high"] - c["low"]
+    return upper_wick >= 2 * body and c["close"] < c["open"]
 
-    return upper_wick >= 2 * body and (c["close"] < c["open"]) and (c["close"] < c["low"] + 0.3 * total)
 
-
-# 🔹 MAIN STRATEGY
 def generate_signals():
     signals = []
 
@@ -86,39 +80,30 @@ def generate_signals():
             ema50_h1 = calculate_ema(closes_h1, 50)
 
             last = m15[-1]
-            ema_touch = (
-    abs(last["low"] - ema8_m15[-1]) < 0.0005 or
-    abs(last["low"] - ema20_m15[-1]) < 0.0005 or
-    abs(last["high"] - ema8_m15[-1]) < 0.0005 or
-    abs(last["high"] - ema20_m15[-1]) < 0.0005
-            )
 
-            # 🔥 TREND CONDITIONS
-            buy_trend = (
-                ema8_m15[-1] > ema20_m15[-1] > ema50_m15[-1] and
-                ema8_h1[-1] > ema20_h1[-1] > ema50_h1[-1]
-            )
+            # TREND
+            buy_trend = ema8_m15[-1] > ema20_m15[-1] > ema50_m15[-1] and ema8_h1[-1] > ema20_h1[-1] > ema50_h1[-1]
+            sell_trend = ema8_m15[-1] < ema20_m15[-1] < ema50_m15[-1] and ema8_h1[-1] < ema20_h1[-1] < ema50_h1[-1]
 
-            sell_trend = (
-                ema8_m15[-1] < ema20_m15[-1] < ema50_m15[-1] and
-                ema8_h1[-1] < ema20_h1[-1] < ema50_h1[-1]
-            )
-
-            # 🔥 TREND STRENGTH
-            distance = abs(ema8_m15[-1] - ema50_m15[-1])
+            # AVOID FLAT MARKET
             if abs(ema8_m15[-1] - ema20_m15[-1]) < 0.0003:
-    continue
-
-            if distance < 0.0010:
                 continue
 
-            # 🔥 PIN BAR
-            if buy_trend and is_bullish_pin(last) and ema_touch:
-                pip = 0.01 if "JPY" in pair else 0.0001
+            # EMA TOUCH (PULLBACK)
+            ema_touch = (
+                abs(last["low"] - ema8_m15[-1]) < 0.0005 or
+                abs(last["low"] - ema20_m15[-1]) < 0.0005 or
+                abs(last["high"] - ema8_m15[-1]) < 0.0005 or
+                abs(last["high"] - ema20_m15[-1]) < 0.0005
+            )
 
-entry = last["high"] + 2 * pip
-sl = last["low"] - 2 * pip
-tp = entry + (entry - sl) * 2
+            pip = 0.01 if "JPY" in pair else 0.0001
+
+            # BUY
+            if buy_trend and is_bullish_pin(last) and ema_touch:
+                entry = last["high"] + 2 * pip
+                sl = last["low"] - 2 * pip
+                tp = entry + (entry - sl) * 2
 
                 signals.append({
                     "pair": pair,
@@ -132,12 +117,11 @@ tp = entry + (entry - sl) * 2
                     "status": "ACTIVE"
                 })
 
+            # SELL
             elif sell_trend and is_bearish_pin(last) and ema_touch:
-                pip = 0.01 if "JPY" in pair else 0.0001
-
-entry = last["low"] - 2 * pip
-sl = last["high"] + 2 * pip
-tp = entry - (sl - entry) * 2
+                entry = last["low"] - 2 * pip
+                sl = last["high"] + 2 * pip
+                tp = entry - (sl - entry) * 2
 
                 signals.append({
                     "pair": pair,
@@ -151,7 +135,8 @@ tp = entry - (sl - entry) * 2
                     "status": "ACTIVE"
                 })
 
-        except:
+        except Exception as e:
+            print(f"Error on {pair}: {e}")
             continue
 
     return signals
