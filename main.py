@@ -1,4 +1,4 @@
-from engine import backtest_strategy
+from engine import backtest_strategy, PAIRS
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from engine import generate_signals, update_signal_status
