@@ -29,11 +29,17 @@ def home():
 
 @app.get("/run")
 def run_engine():
+    global signals
+
     try:
         new_signals = generate_signals()
 
         if new_signals:
-            signals.extend(new_signals)
+            for new in new_signals:
+                # remove old signal for same pair
+                signals = [s for s in signals if s["pair"] != new["pair"]]
+                signals.append(new)
+
             return {"new_signals": new_signals}
 
         return {"status": "no signal"}
