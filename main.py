@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from engine import generate_signals
+from engine import generate_signals, update_signal_status
 import threading
 import time
 import requests
 
 app = FastAPI()
 
-# ✅ FIX CORS (VERY IMPORTANT)
+# ✅ CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,8 +17,8 @@ app.add_middleware(
 )
 
 signals = []
+history = []
 
-# 🔴 REPLACE WITH YOUR REAL RENDER URL
 BASE_URL = "https://trading-signal-bot-7bb3.onrender.com"
 
 
@@ -36,7 +36,6 @@ def run_engine():
 
         if new_signals:
             for new in new_signals:
-                # remove old signal for same pair
                 signals = [s for s in signals if s["pair"] != new["pair"]]
                 signals.append(new)
 
@@ -50,10 +49,44 @@ def run_engine():
 
 @app.get("/signals")
 def get_signals():
-    return signals if signals else []
+    global signals, history
+
+    updated = update_signal_status(signals)
+
+    active = []
+    for s in updated:
+        if s["status"] == "ACTIVE":
+            active.append(s)
+        else:
+            history.append(s)
+
+    signals = active
+
+    return sorted(signals, key=lambda x: x["pair"])
 
 
-# 🔄 AUTO RUN EVERY 5 MINUTES
+@app.get("/history")
+def get_history():
+    return history
+
+
+@app.get("/stats")
+def get_stats():
+    wins = sum(1 for h in history if h["status"] == "TP HIT")
+    losses = sum(1 for h in history if h["status"] == "SL HIT")
+
+    total = wins + losses
+    win_rate = (wins / total * 100) if total > 0 else 0
+
+    return {
+        "wins": wins,
+        "losses": losses,
+        "total": total,
+        "win_rate": round(win_rate, 2)
+    }
+
+
+# 🔄 AUTO RUN
 def auto_runner():
     while True:
         try:
@@ -65,3 +98,5 @@ def auto_runner():
 
 
 threading.Thread(target=auto_runner, daemon=True).start()
+
+
