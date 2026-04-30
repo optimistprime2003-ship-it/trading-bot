@@ -106,6 +106,8 @@ def generate_signals():
 
             # 🔥 TREND STRENGTH
             distance = abs(ema8_m15[-1] - ema50_m15[-1])
+            if abs(ema8_m15[-1] - ema20_m15[-1]) < 0.0003:
+    continue
 
             if distance < 0.0010:
                 continue
