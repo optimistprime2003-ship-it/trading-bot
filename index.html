@@ -72,11 +72,14 @@ async function loadSignals() {
       div.className = "card " + (signal.signal === "BUY" ? "buy" : "sell");
 
       div.innerHTML = `
-        <h3>${signal.pair} - ${signal.signal}</h3>
-        <p>Entry: ${signal.entry}</p>
-        <p>SL: ${signal.sl}</p>
-        <p>TP: ${signal.tp}</p>
-      `;
+  <h3>${signal.pair} - ${signal.signal}</h3>
+  <p><b>Type:</b> ${signal.type}</p>
+  <p><b>Entry:</b> ${signal.entry}</p>
+  <p><b>SL:</b> ${signal.sl}</p>
+  <p><b>TP:</b> ${signal.tp}</p>
+  <p><b>Time:</b> ${signal.time}</p>
+  <p><b>Expiry:</b> ${signal.expiry}</p>
+`;
 
       container.appendChild(div);
     });
