@@ -9,6 +9,7 @@ TIMEFRAME_ENTRY = "15min"
 TIMEFRAME_TREND = "1h"
 
 
+# 🔹 FETCH CANDLES
 def get_candles(pair, interval, limit=100):
     url = f"https://api.twelvedata.com/time_series?symbol={pair}&interval={interval}&outputsize={limit}&apikey={API_KEY}"
     data = requests.get(url).json()
@@ -27,6 +28,7 @@ def get_candles(pair, interval, limit=100):
     return candles
 
 
+# 🔹 EMA CALCULATION
 def calculate_ema(prices, period):
     ema = []
     k = 2 / (period + 1)
@@ -40,20 +42,20 @@ def calculate_ema(prices, period):
     return ema
 
 
+# 🔹 PIN BAR DETECTION
 def is_bullish_pin(c):
     body = abs(c["close"] - c["open"])
     lower_wick = min(c["open"], c["close"]) - c["low"]
-    total = c["high"] - c["low"]
     return lower_wick >= 2 * body and c["close"] > c["open"]
 
 
 def is_bearish_pin(c):
     body = abs(c["close"] - c["open"])
     upper_wick = c["high"] - max(c["open"], c["close"])
-    total = c["high"] - c["low"]
     return upper_wick >= 2 * body and c["close"] < c["open"]
 
 
+# 🔥 MAIN STRATEGY
 def generate_signals():
     signals = []
 
@@ -140,3 +142,46 @@ def generate_signals():
             continue
 
     return signals
+
+
+# 🔥 TRACK TP / SL / EXPIRY
+def update_signal_status(signals):
+    updated = []
+
+    for s in signals:
+        try:
+            url = f"https://api.twelvedata.com/price?symbol={s['pair']}&apikey={API_KEY}"
+            price_data = requests.get(url).json()
+
+            if "price" not in price_data:
+                updated.append(s)
+                continue
+
+            price = float(price_data["price"])
+
+            if s["status"] != "ACTIVE":
+                updated.append(s)
+                continue
+
+            if s["signal"] == "BUY":
+                if price >= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price <= s["sl"]:
+                    s["status"] = "SL HIT"
+
+            elif s["signal"] == "SELL":
+                if price <= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price >= s["sl"]:
+                    s["status"] = "SL HIT"
+
+            expiry_time = datetime.datetime.strptime(s["expiry"], "%Y-%m-%d %H:%M")
+            if datetime.datetime.utcnow() > expiry_time and s["status"] == "ACTIVE":
+                s["status"] = "EXPIRED"
+
+            updated.append(s)
+
+        except:
+            updated.append(s)
+
+    return updated
