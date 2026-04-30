@@ -86,6 +86,12 @@ def generate_signals():
             ema50_h1 = calculate_ema(closes_h1, 50)
 
             last = m15[-1]
+            ema_touch = (
+    abs(last["low"] - ema8_m15[-1]) < 0.0005 or
+    abs(last["low"] - ema20_m15[-1]) < 0.0005 or
+    abs(last["high"] - ema8_m15[-1]) < 0.0005 or
+    abs(last["high"] - ema20_m15[-1]) < 0.0005
+            )
 
             # 🔥 TREND CONDITIONS
             buy_trend = (
