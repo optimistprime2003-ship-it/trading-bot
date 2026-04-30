@@ -112,9 +112,11 @@ def generate_signals():
 
             # 🔥 PIN BAR
             if buy_trend and is_bullish_pin(last) and ema_touch:
-                entry = last["high"] + 0.0002
-                sl = last["low"] - 0.0002
-                tp = entry + (entry - sl) * 2
+                pip = 0.01 if "JPY" in pair else 0.0001
+
+entry = last["high"] + 2 * pip
+sl = last["low"] - 2 * pip
+tp = entry + (entry - sl) * 2
 
                 signals.append({
                     "pair": pair,
