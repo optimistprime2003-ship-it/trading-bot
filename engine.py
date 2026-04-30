@@ -1,7 +1,7 @@
 import requests
 import datetime
 
-API_KEY = "YOUR_TWELVEDATA_API_KEY"
+API_KEY = "d93af08b103e43c99034dd6362a239d3"
 
 PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "GBP/JPY", "AUD/USD", "EUR/JPY"]
 
