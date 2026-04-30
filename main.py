@@ -100,8 +100,44 @@ def auto_runner():
 
 threading.Thread(target=auto_runner, daemon=True).start()
 
-@app.get("/backtest")
-def run_backtest(pair: str = "EUR/USD"):
-    return backtest_strategy(pair)
+@app.get("/backtest-all")
+def run_backtest_all():
+    results = []
+
+    total_wins = 0
+    total_losses = 0
+    total_trades = 0
+    total_R = 0
+
+    for pair in PAIRS:
+        try:
+            res = backtest_strategy(pair)
+
+            # Skip errors
+            if "error" in res:
+                continue
+
+            results.append(res)
+
+            total_wins += res["wins"]
+            total_losses += res["losses"]
+            total_trades += res["trades"]
+            total_R += res["net_R"]
+
+        except:
+            continue
+
+    win_rate = (total_wins / total_trades * 100) if total_trades > 0 else 0
+
+    return {
+        "summary": {
+            "total_trades": total_trades,
+            "wins": total_wins,
+            "losses": total_losses,
+            "win_rate": round(win_rate, 2),
+            "net_R": total_R
+        },
+        "pairs": results
+    }
 
 
