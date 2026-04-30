@@ -185,3 +185,108 @@ def update_signal_status(signals):
             updated.append(s)
 
     return updated
+    def backtest_strategy(pair="EUR/USD"):
+    results = []
+
+    m15 = get_candles(pair, TIMEFRAME_ENTRY, 500)
+    h1 = get_candles(pair, TIMEFRAME_TREND, 500)
+
+    if len(m15) < 100 or len(h1) < 100:
+        return {"error": "Not enough data"}
+
+    closes_m15 = [c["close"] for c in m15]
+    closes_h1 = [c["close"] for c in h1]
+
+    ema8_m15 = calculate_ema(closes_m15, 8)
+    ema20_m15 = calculate_ema(closes_m15, 20)
+    ema50_m15 = calculate_ema(closes_m15, 50)
+
+    ema8_h1 = calculate_ema(closes_h1, 8)
+    ema20_h1 = calculate_ema(closes_h1, 20)
+    ema50_h1 = calculate_ema(closes_h1, 50)
+
+    pip = 0.01 if "JPY" in pair else 0.0001
+
+    wins = 0
+    losses = 0
+    total_r = 0
+
+    for i in range(60, len(m15) - 10):
+        last = m15[i]
+
+        buy_trend = ema8_m15[i] > ema20_m15[i] > ema50_m15[i] and ema8_h1[i] > ema20_h1[i] > ema50_h1[i]
+        sell_trend = ema8_m15[i] < ema20_m15[i] < ema50_m15[i] and ema8_h1[i] < ema20_h1[i] < ema50_h1[i]
+
+        if abs(ema8_m15[i] - ema20_m15[i]) < 0.0003:
+            continue
+
+        ema_touch = (
+            abs(last["low"] - ema8_m15[i]) < 0.0005 or
+            abs(last["low"] - ema20_m15[i]) < 0.0005 or
+            abs(last["high"] - ema8_m15[i]) < 0.0005 or
+            abs(last["high"] - ema20_m15[i]) < 0.0005
+        )
+
+        entry = None
+        sl = None
+        tp = None
+        direction = None
+
+        if buy_trend and is_bullish_pin(last) and ema_touch:
+            entry = last["high"] + 2 * pip
+            sl = last["low"] - 2 * pip
+            tp = entry + (entry - sl) * 2
+            direction = "BUY"
+
+        elif sell_trend and is_bearish_pin(last) and ema_touch:
+            entry = last["low"] - 2 * pip
+            sl = last["high"] + 2 * pip
+            tp = entry - (sl - entry) * 2
+            direction = "SELL"
+
+        if not entry:
+            continue
+
+        # 🔁 simulate forward candles
+        outcome = None
+
+        for j in range(i + 1, i + 10):
+            candle = m15[j]
+
+            if direction == "BUY":
+                if candle["low"] <= sl:
+                    outcome = "SL"
+                    break
+                if candle["high"] >= tp:
+                    outcome = "TP"
+                    break
+
+            elif direction == "SELL":
+                if candle["high"] >= sl:
+                    outcome = "SL"
+                    break
+                if candle["low"] <= tp:
+                    outcome = "TP"
+                    break
+
+        if outcome == "TP":
+            wins += 1
+            total_r += 2
+            results.append("TP")
+
+        elif outcome == "SL":
+            losses += 1
+            total_r -= 1
+            results.append("SL")
+
+    total = wins + losses
+    win_rate = (wins / total * 100) if total > 0 else 0
+
+    return {
+        "pair": pair,
+        "trades": total,
+        "wins": wins,
+        "losses": losses,
+        "win_rate": round(win_rate, 2),
+        "net_R": total_r
+    }
