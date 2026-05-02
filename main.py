@@ -1,143 +1,82 @@
-from engine import backtest_strategy, PAIRS
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from engine import generate_signals, update_signal_status
-import threading
-import time
-import requests
+import datetime
 
 app = FastAPI()
 
-# ✅ CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-signals = []
-history = []
-
-BASE_URL = "https://trading-signal-bot-7bb3.onrender.com"
+# 🔹 STORAGE
+active_signals = []
+history_signals = []
 
 
+# 🔹 HOME
 @app.get("/")
 def home():
     return {"status": "Bot running"}
 
 
+# 🔹 RUN ENGINE
 @app.get("/run")
 def run_engine():
-    global signals
+    global active_signals, history_signals
 
     try:
         new_signals = generate_signals()
 
-        if new_signals:
-            for new in new_signals:
-                signals = [s for s in signals if s["pair"] != new["pair"]]
-                signals.append(new)
+        # ✅ ADD ONLY NEW SIGNALS (avoid duplicates)
+        for new in new_signals:
+            if not any(
+                s["pair"] == new["pair"] and s["time"] == new["time"]
+                for s in active_signals
+            ):
+                active_signals.append(new)
 
-            return {"new_signals": new_signals}
+        # 🔄 UPDATE STATUS (TP / SL / EXPIRED)
+        updated = update_signal_status(active_signals)
 
-        return {"status": "no signal"}
+        still_active = []
+
+        for s in updated:
+            if s["status"] in ["TP HIT", "SL HIT", "EXPIRED"]:
+                history_signals.append(s)
+            else:
+                still_active.append(s)
+
+        active_signals = still_active
+
+        return {
+            "active": active_signals,
+            "history": history_signals[-20:]
+        }
 
     except Exception as e:
         return {"error": str(e)}
 
 
+# 🔹 GET ACTIVE SIGNALS
 @app.get("/signals")
 def get_signals():
-    global signals, history
-
-    updated = update_signal_status(signals)
-
-    active = []
-    for s in updated:
-        if s["status"] == "ACTIVE":
-            active.append(s)
-        else:
-            history.append(s)
-
-    signals = active
-
-    return sorted(signals, key=lambda x: x["pair"])
+    return active_signals
 
 
+# 🔹 GET HISTORY
 @app.get("/history")
 def get_history():
-    return history
+    return history_signals[-50:]
 
 
+# 🔹 GET STATS (REAL)
 @app.get("/stats")
 def get_stats():
-    wins = sum(1 for h in history if h["status"] == "TP HIT")
-    losses = sum(1 for h in history if h["status"] == "SL HIT")
-
+    wins = sum(1 for s in history_signals if s["status"] == "TP HIT")
+    losses = sum(1 for s in history_signals if s["status"] == "SL HIT")
     total = wins + losses
+
     win_rate = (wins / total * 100) if total > 0 else 0
 
     return {
+        "total_trades": total,
         "wins": wins,
         "losses": losses,
-        "total": total,
         "win_rate": round(win_rate, 2)
     }
-
-
-# 🔄 AUTO RUN
-def auto_runner():
-    while True:
-        try:
-            requests.get(BASE_URL + "/run")
-        except:
-            pass
-
-        time.sleep(300)
-
-
-threading.Thread(target=auto_runner, daemon=True).start()
-
-@app.get("/backtest-all")
-def run_backtest_all():
-    results = []
-
-    total_wins = 0
-    total_losses = 0
-    total_trades = 0
-    total_R = 0
-
-    for pair in PAIRS:
-        try:
-            res = backtest_strategy(pair)
-
-            # Skip errors
-            if "error" in res:
-                continue
-
-            results.append(res)
-
-            total_wins += res["wins"]
-            total_losses += res["losses"]
-            total_trades += res["trades"]
-            total_R += res["net_R"]
-
-        except:
-            continue
-
-    win_rate = (total_wins / total_trades * 100) if total_trades > 0 else 0
-
-    return {
-        "summary": {
-            "total_trades": total_trades,
-            "wins": total_wins,
-            "losses": total_losses,
-            "win_rate": round(win_rate, 2),
-            "net_R": total_R
-        },
-        "pairs": results
-    }
-
-
