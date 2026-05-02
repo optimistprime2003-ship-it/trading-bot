@@ -13,14 +13,21 @@
       padding: 10px;
     }
 
-    h2 {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-
     .container {
       max-width: 600px;
       margin: auto;
+    }
+
+    .header {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 20px;
+      font-size: 18px;
     }
 
     .card {
@@ -31,17 +38,10 @@
       font-size: 14px;
     }
 
-    .buy {
-      border-left: 5px solid #22c55e;
-    }
+    .buy { border-left: 5px solid #22c55e; }
+    .sell { border-left: 5px solid #ef4444; }
 
-    .sell {
-      border-left: 5px solid #ef4444;
-    }
-
-    .expired {
-      opacity: 0.6;
-    }
+    .expired { opacity: 0.6; }
 
     .stats {
       display: flex;
@@ -66,14 +66,6 @@
       border-radius: 8px;
       font-size: 16px;
     }
-
-    .header {
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
   </style>
 </head>
 
@@ -99,6 +91,10 @@
 <script>
 const base = "https://trading-signal-bot-7bb3.onrender.com";
 
+// 🔔 SOUND SETUP
+let lastSignalCount = 0;
+const alertSound = new Audio("https://www.soundjay.com/buttons/sounds/beep-07.mp3");
+
 // RUN BOT
 async function runBot() {
   await fetch(base + "/run");
@@ -118,10 +114,17 @@ async function loadStats() {
   `;
 }
 
-// LOAD ACTIVE SIGNALS
+// LOAD SIGNALS + SOUND
 async function loadSignals() {
   const res = await fetch(base + "/signals");
   const data = await res.json();
+
+  // 🔔 PLAY SOUND WHEN NEW SIGNAL APPEARS
+  if (data.length > lastSignalCount && lastSignalCount !== 0) {
+    alertSound.play().catch(() => {});
+  }
+
+  lastSignalCount = data.length;
 
   if (data.length === 0) {
     document.getElementById("signals").innerHTML = "No active signals";
@@ -170,7 +173,7 @@ async function loadHistory() {
   document.getElementById("history").innerHTML = html;
 }
 
-// LOAD EVERYTHING
+// LOAD ALL
 async function loadAll() {
   loadStats();
   loadSignals();
