@@ -3,27 +3,23 @@
 <head>
   <title>Trading Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <style>
     body {
+      font-family: Arial;
       background: #0f172a;
       color: white;
-      font-family: Arial;
       margin: 0;
+      padding: 10px;
     }
 
     h2 {
-      margin: 10px;
-    }
-
-    .section {
-      padding: 10px;
+      margin-top: 20px;
     }
 
     .card {
       background: #1e293b;
       padding: 12px;
-      margin: 8px;
+      margin: 8px 0;
       border-radius: 10px;
     }
 
@@ -32,120 +28,107 @@
 
     .stats {
       display: flex;
-      justify-content: space-around;
+      justify-content: space-between;
+      background: #020617;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .stat {
       text-align: center;
     }
 
-    .stat-box {
-      background: #1e293b;
-      padding: 10px;
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #3b82f6;
+      color: white;
+      border: none;
       border-radius: 8px;
-      width: 22%;
+      font-size: 16px;
     }
   </style>
 </head>
 
 <body>
 
-<!-- 📊 STATS -->
-<div class="section">
-  <h2>📊 Performance</h2>
-  <div class="stats">
-    <div class="stat-box"><p>Win Rate</p><h3 id="win"></h3></div>
-    <div class="stat-box"><p>Wins</p><h3 id="wins"></h3></div>
-    <div class="stat-box"><p>Losses</p><h3 id="losses"></h3></div>
-    <div class="stat-box"><p>Total</p><h3 id="total"></h3></div>
-  </div>
-</div>
+<h2>📊 Stats</h2>
+<div class="stats" id="stats"></div>
 
-<!-- 📈 LIVE SIGNALS -->
-<div class="section">
-  <h2>📈 Live Signals</h2>
-  <div id="signals"></div>
-</div>
+<button onclick="runBot()">🔄 Refresh Signals</button>
 
-<!-- 📜 HISTORY -->
-<div class="section">
-  <h2>📜 Trade History</h2>
-  <div id="history"></div>
-</div>
+<h2>📡 Active Signals</h2>
+<div id="signals"></div>
+
+<h2>📁 History</h2>
+<div id="history"></div>
 
 <script>
-const BASE = "https://trading-signal-bot-7bb3.onrender.com";
+const base = "https://trading-signal-bot-7bb3.onrender.com";
 
-// 🔄 LOAD STATS
-async function loadStats() {
-  const res = await fetch(BASE + "/stats");
-  const data = await res.json();
-
-  document.getElementById("win").innerText = data.win_rate + "%";
-  document.getElementById("wins").innerText = data.wins;
-  document.getElementById("losses").innerText = data.losses;
-  document.getElementById("total").innerText = data.total;
+async function runBot() {
+  await fetch(base + "/run");
+  loadAll();
 }
 
-// 🔄 LOAD SIGNALS
-async function loadSignals() {
-  const res = await fetch(BASE + "/signals");
+async function loadStats() {
+  const res = await fetch(base + "/stats");
   const data = await res.json();
 
-  const container = document.getElementById("signals");
-  container.innerHTML = "";
+  document.getElementById("stats").innerHTML = `
+    <div class="stat">Trades<br>${data.total_trades}</div>
+    <div class="stat">Wins<br>${data.wins}</div>
+    <div class="stat">Losses<br>${data.losses}</div>
+    <div class="stat">Win Rate<br>${data.win_rate}%</div>
+  `;
+}
 
-  if (data.length === 0) {
-    container.innerHTML = "<p>No active signals</p>";
-    return;
-  }
+async function loadSignals() {
+  const res = await fetch(base + "/signals");
+  const data = await res.json();
+
+  let html = "";
 
   data.forEach(s => {
-    const div = document.createElement("div");
-    div.className = "card " + (s.signal === "BUY" ? "buy" : "sell");
-
-    div.innerHTML = `
-      <h3>${s.pair} - ${s.signal}</h3>
-      <p>Type: ${s.type}</p>
-      <p>Entry: ${s.entry}</p>
-      <p>SL: ${s.sl}</p>
-      <p>TP: ${s.tp}</p>
-      <p>Status: ${s.status}</p>
+    html += `
+      <div class="card ${s.signal === "BUY" ? "buy" : "sell"}">
+        <b>${s.pair}</b> (${s.type})<br>
+        Entry: ${s.entry}<br>
+        SL: ${s.sl}<br>
+        TP: ${s.tp}<br>
+        Status: ${s.status}
+      </div>
     `;
-
-    container.appendChild(div);
   });
+
+  document.getElementById("signals").innerHTML = html;
 }
 
-// 🔄 LOAD HISTORY
 async function loadHistory() {
-  const res = await fetch(BASE + "/history");
+  const res = await fetch(base + "/history");
   const data = await res.json();
 
-  const container = document.getElementById("history");
-  container.innerHTML = "";
+  let html = "";
 
-  data.slice(-10).reverse().forEach(h => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <h4>${h.pair} - ${h.signal}</h4>
-      <p>Status: ${h.status}</p>
+  data.reverse().forEach(s => {
+    html += `
+      <div class="card">
+        ${s.pair} → ${s.status}
+      </div>
     `;
-
-    container.appendChild(div);
   });
+
+  document.getElementById("history").innerHTML = html;
 }
 
-// 🔄 AUTO REFRESH
-setInterval(() => {
+async function loadAll() {
   loadStats();
   loadSignals();
   loadHistory();
-}, 10000);
+}
 
-// INITIAL LOAD
-loadStats();
-loadSignals();
-loadHistory();
+loadAll();
 </script>
 
 </body>
