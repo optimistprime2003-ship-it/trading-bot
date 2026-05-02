@@ -3,17 +3,24 @@
 <head>
   <title>Trading Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #0f172a;
-      color: white;
+      color: #fff;
       margin: 0;
       padding: 10px;
     }
 
     h2 {
       margin-top: 20px;
+      font-size: 18px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
     }
 
     .card {
@@ -21,10 +28,20 @@
       padding: 12px;
       margin: 8px 0;
       border-radius: 10px;
+      font-size: 14px;
     }
 
-    .buy { border-left: 5px solid #22c55e; }
-    .sell { border-left: 5px solid #ef4444; }
+    .buy {
+      border-left: 5px solid #22c55e;
+    }
+
+    .sell {
+      border-left: 5px solid #ef4444;
+    }
+
+    .expired {
+      opacity: 0.6;
+    }
 
     .stats {
       display: flex;
@@ -36,6 +53,7 @@
 
     .stat {
       text-align: center;
+      font-size: 12px;
     }
 
     button {
@@ -48,45 +66,67 @@
       border-radius: 8px;
       font-size: 16px;
     }
+
+    .header {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
   </style>
 </head>
 
 <body>
 
-<h2>📊 Stats</h2>
-<div class="stats" id="stats"></div>
+<div class="container">
+
+<div class="header">📊 Trading Dashboard</div>
+
+<h2>Stats</h2>
+<div class="stats" id="stats">Loading...</div>
 
 <button onclick="runBot()">🔄 Refresh Signals</button>
 
 <h2>📡 Active Signals</h2>
-<div id="signals"></div>
+<div id="signals">Loading...</div>
 
 <h2>📁 History</h2>
-<div id="history"></div>
+<div id="history">Loading...</div>
+
+</div>
 
 <script>
 const base = "https://trading-signal-bot-7bb3.onrender.com";
 
+// RUN BOT
 async function runBot() {
   await fetch(base + "/run");
   loadAll();
 }
 
+// LOAD STATS
 async function loadStats() {
   const res = await fetch(base + "/stats");
   const data = await res.json();
 
   document.getElementById("stats").innerHTML = `
-    <div class="stat">Trades<br>${data.total_trades}</div>
-    <div class="stat">Wins<br>${data.wins}</div>
-    <div class="stat">Losses<br>${data.losses}</div>
-    <div class="stat">Win Rate<br>${data.win_rate}%</div>
+    <div class="stat">Trades<br><b>${data.total_trades}</b></div>
+    <div class="stat">Wins<br><b>${data.wins}</b></div>
+    <div class="stat">Losses<br><b>${data.losses}</b></div>
+    <div class="stat">Win Rate<br><b>${data.win_rate}%</b></div>
   `;
 }
 
+// LOAD ACTIVE SIGNALS
 async function loadSignals() {
   const res = await fetch(base + "/signals");
   const data = await res.json();
+
+  if (data.length === 0) {
+    document.getElementById("signals").innerHTML = "No active signals";
+    return;
+  }
 
   let html = "";
 
@@ -97,7 +137,8 @@ async function loadSignals() {
         Entry: ${s.entry}<br>
         SL: ${s.sl}<br>
         TP: ${s.tp}<br>
-        Status: ${s.status}
+        Status: ${s.status}<br>
+        Time: ${s.time}
       </div>
     `;
   });
@@ -105,16 +146,23 @@ async function loadSignals() {
   document.getElementById("signals").innerHTML = html;
 }
 
+// LOAD HISTORY
 async function loadHistory() {
   const res = await fetch(base + "/history");
   const data = await res.json();
 
+  if (data.length === 0) {
+    document.getElementById("history").innerHTML = "No history yet";
+    return;
+  }
+
   let html = "";
 
-  data.reverse().forEach(s => {
+  data.slice().reverse().forEach(s => {
     html += `
-      <div class="card">
-        ${s.pair} → ${s.status}
+      <div class="card expired">
+        <b>${s.pair}</b><br>
+        Result: ${s.status}
       </div>
     `;
   });
@@ -122,12 +170,17 @@ async function loadHistory() {
   document.getElementById("history").innerHTML = html;
 }
 
+// LOAD EVERYTHING
 async function loadAll() {
   loadStats();
   loadSignals();
   loadHistory();
 }
 
+// AUTO REFRESH EVERY 30 SECONDS
+setInterval(loadAll, 30000);
+
+// INITIAL LOAD
 loadAll();
 </script>
 
