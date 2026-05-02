@@ -1,285 +1,147 @@
 import requests
-import datetime
+from datetime import datetime, timedelta
 
-API_KEY = "d93af08b103e43c99034dd6362a239d3"
+PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 
-PAIRS = ["EUR/USD", "GBP/USD", "USD/JPY", "GBP/JPY", "AUD/USD", "EUR/JPY"]
+# ===============================
+# SESSION FILTER (London + New York)
+# ===============================
+def is_trading_session():
+    now = datetime.utcnow()
+    hour = now.hour
 
-TIMEFRAME_ENTRY = "15min"
-TIMEFRAME_TREND = "1h"
+    # Trade only between 08:00 and 21:00 UTC
+    return 8 <= hour <= 21
 
 
-# 🔹 FETCH CANDLES
-def get_candles(pair, interval, limit=100):
-    url = f"https://api.twelvedata.com/time_series?symbol={pair}&interval={interval}&outputsize={limit}&apikey={API_KEY}"
-    data = requests.get(url).json()
+# ===============================
+# FETCH MARKET DATA
+# ===============================
+def fetch_data(symbol, interval="15min"):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=100&apikey=d93af08b103e43c99034dd6362a239d3"
+    res = requests.get(url).json()
 
-    if "values" not in data:
+    if "values" not in res:
         return []
 
-    candles = list(reversed(data["values"]))
-
-    for c in candles:
-        c["close"] = float(c["close"])
-        c["open"] = float(c["open"])
-        c["high"] = float(c["high"])
-        c["low"] = float(c["low"])
-
-    return candles
+    return list(reversed(res["values"]))
 
 
-# 🔹 EMA
+# ===============================
+# SIMPLE EMA CALCULATION
+# ===============================
 def calculate_ema(prices, period):
     ema = []
     k = 2 / (period + 1)
 
-    for i in range(len(prices)):
+    for i, price in enumerate(prices):
+        price = float(price)
+
         if i == 0:
-            ema.append(prices[i])
+            ema.append(price)
         else:
-            ema.append(prices[i] * k + ema[i-1] * (1 - k))
+            ema.append(price * k + ema[i - 1] * (1 - k))
 
     return ema
 
 
-# 🔹 PIN BAR
-def is_bullish_pin(c):
-    body = abs(c["close"] - c["open"])
-    lower_wick = min(c["open"], c["close"]) - c["low"]
-    return lower_wick >= 2 * body and c["close"] > c["open"]
-
-
-def is_bearish_pin(c):
-    body = abs(c["close"] - c["open"])
-    upper_wick = c["high"] - max(c["open"], c["close"])
-    return upper_wick >= 2 * body and c["close"] < c["open"]
-
-
-# 🔥 GENERATE SIGNALS
+# ===============================
+# GENERATE SIGNALS
+# ===============================
 def generate_signals():
+    if not is_trading_session():
+        return []
+
     signals = []
 
-    now = datetime.datetime.utcnow()
-    expiry = now + datetime.timedelta(hours=4)
-
     for pair in PAIRS:
-        try:
-            m15 = get_candles(pair, TIMEFRAME_ENTRY)
-            h1 = get_candles(pair, TIMEFRAME_TREND)
+        data = fetch_data(pair, "15min")
 
-            if len(m15) < 60 or len(h1) < 60:
-                continue
-
-            closes_m15 = [c["close"] for c in m15]
-            closes_h1 = [c["close"] for c in h1]
-
-            ema8_m15 = calculate_ema(closes_m15, 8)
-            ema20_m15 = calculate_ema(closes_m15, 20)
-            ema50_m15 = calculate_ema(closes_m15, 50)
-
-            ema8_h1 = calculate_ema(closes_h1, 8)
-            ema20_h1 = calculate_ema(closes_h1, 20)
-            ema50_h1 = calculate_ema(closes_h1, 50)
-
-            last = m15[-1]
-
-            buy_trend = ema8_m15[-1] > ema20_m15[-1] > ema50_m15[-1] and ema8_h1[-1] > ema20_h1[-1] > ema50_h1[-1]
-            sell_trend = ema8_m15[-1] < ema20_m15[-1] < ema50_m15[-1] and ema8_h1[-1] < ema20_h1[-1] < ema50_h1[-1]
-
-            if abs(ema8_m15[-1] - ema20_m15[-1]) < 0.0003:
-                continue
-
-            ema_touch = (
-                abs(last["low"] - ema8_m15[-1]) < 0.0005 or
-                abs(last["low"] - ema20_m15[-1]) < 0.0005 or
-                abs(last["high"] - ema8_m15[-1]) < 0.0005 or
-                abs(last["high"] - ema20_m15[-1]) < 0.0005
-            )
-
-            pip = 0.01 if "JPY" in pair else 0.0001
-
-            if buy_trend and is_bullish_pin(last) and ema_touch:
-                entry = last["high"] + 2 * pip
-                sl = last["low"] - 2 * pip
-                tp = entry + (entry - sl) * 2
-
-                signals.append({
-                    "pair": pair,
-                    "signal": "BUY",
-                    "type": "BUY STOP",
-                    "entry": round(entry, 5),
-                    "sl": round(sl, 5),
-                    "tp": round(tp, 5),
-                    "time": now.strftime("%Y-%m-%d %H:%M"),
-                    "expiry": expiry.strftime("%Y-%m-%d %H:%M"),
-                    "status": "ACTIVE"
-                })
-
-            elif sell_trend and is_bearish_pin(last) and ema_touch:
-                entry = last["low"] - 2 * pip
-                sl = last["high"] + 2 * pip
-                tp = entry - (sl - entry) * 2
-
-                signals.append({
-                    "pair": pair,
-                    "signal": "SELL",
-                    "type": "SELL STOP",
-                    "entry": round(entry, 5),
-                    "sl": round(sl, 5),
-                    "tp": round(tp, 5),
-                    "time": now.strftime("%Y-%m-%d %H:%M"),
-                    "expiry": expiry.strftime("%Y-%m-%d %H:%M"),
-                    "status": "ACTIVE"
-                })
-
-        except Exception as e:
-            print(f"Error on {pair}: {e}")
+        if len(data) < 50:
             continue
+
+        closes = [float(c["close"]) for c in data]
+        highs = [float(c["high"]) for c in data]
+        lows = [float(c["low"]) for c in data]
+
+        ema8 = calculate_ema(closes, 8)
+        ema20 = calculate_ema(closes, 20)
+        ema50 = calculate_ema(closes, 50)
+
+        i = -1
+
+        # TREND
+        buy_trend = ema8[i] > ema20[i] > ema50[i]
+        sell_trend = ema8[i] < ema20[i] < ema50[i]
+
+        # PULLBACK (touch EMA)
+        ema_touch_buy = abs(lows[i] - ema8[i]) < 0.0015
+        ema_touch_sell = abs(highs[i] - ema8[i]) < 0.0015
+
+        now = datetime.utcnow()
+
+        if buy_trend and ema_touch_buy:
+            entry = highs[i] + 0.0002
+            sl = lows[i] - 0.0002
+            tp = entry + (entry - sl) * 2
+
+            signals.append({
+                "pair": pair,
+                "signal": "BUY",
+                "type": "BUY STOP",
+                "entry": round(entry, 5),
+                "sl": round(sl, 5),
+                "tp": round(tp, 5),
+                "time": str(now),
+                "expiry": str(now + timedelta(hours=4)),
+                "status": "ACTIVE"
+            })
+
+        elif sell_trend and ema_touch_sell:
+            entry = lows[i] - 0.0002
+            sl = highs[i] + 0.0002
+            tp = entry - (sl - entry) * 2
+
+            signals.append({
+                "pair": pair,
+                "signal": "SELL",
+                "type": "SELL STOP",
+                "entry": round(entry, 5),
+                "sl": round(sl, 5),
+                "tp": round(tp, 5),
+                "time": str(now),
+                "expiry": str(now + timedelta(hours=4)),
+                "status": "ACTIVE"
+            })
 
     return signals
 
 
-# 🔥 TRACK STATUS
+# ===============================
+# UPDATE SIGNAL STATUS
+# ===============================
 def update_signal_status(signals):
     updated = []
 
     for s in signals:
-        try:
-            url = f"https://api.twelvedata.com/price?symbol={s['pair']}&apikey={API_KEY}"
-            price_data = requests.get(url).json()
+        pair = s["pair"]
+        data = fetch_data(pair, "1min")
 
-            if "price" not in price_data:
-                updated.append(s)
-                continue
+        if not data:
+            updated.append(s)
+            continue
 
-            price = float(price_data["price"])
+        price = float(data[-1]["close"])
+        now = datetime.utcnow()
 
-            if s["status"] != "ACTIVE":
-                updated.append(s)
-                continue
-
-            if s["signal"] == "BUY":
-                if price >= s["tp"]:
-                    s["status"] = "TP HIT"
-                elif price <= s["sl"]:
-                    s["status"] = "SL HIT"
-
-            elif s["signal"] == "SELL":
-                if price <= s["tp"]:
-                    s["status"] = "TP HIT"
-                elif price >= s["sl"]:
-                    s["status"] = "SL HIT"
-
-            expiry_time = datetime.datetime.strptime(s["expiry"], "%Y-%m-%d %H:%M")
-            if datetime.datetime.utcnow() > expiry_time and s["status"] == "ACTIVE":
+        if s["status"] == "ACTIVE":
+            if price >= s["tp"]:
+                s["status"] = "TP HIT"
+            elif price <= s["sl"]:
+                s["status"] = "SL HIT"
+            elif now > datetime.fromisoformat(s["expiry"]):
                 s["status"] = "EXPIRED"
 
-            updated.append(s)
-
-        except:
-            updated.append(s)
+        updated.append(s)
 
     return updated
-
-
-# 🔥 BACKTEST
-def backtest_strategy(pair="EUR/USD"):
-    m15 = get_candles(pair, TIMEFRAME_ENTRY, 500)
-    h1 = get_candles(pair, TIMEFRAME_TREND, 500)
-
-    if len(m15) < 100 or len(h1) < 100:
-        return {"error": "Not enough data"}
-
-    closes_m15 = [c["close"] for c in m15]
-    closes_h1 = [c["close"] for c in h1]
-
-    ema8_m15 = calculate_ema(closes_m15, 8)
-    ema20_m15 = calculate_ema(closes_m15, 20)
-    ema50_m15 = calculate_ema(closes_m15, 50)
-
-    ema8_h1 = calculate_ema(closes_h1, 8)
-    ema20_h1 = calculate_ema(closes_h1, 20)
-    ema50_h1 = calculate_ema(closes_h1, 50)
-
-    pip = 0.01 if "JPY" in pair else 0.0001
-
-    wins = 0
-    losses = 0
-    total_r = 0
-
-    for i in range(60, len(m15) - 10):
-        last = m15[i]
-
-        buy_trend = ema8_m15[i] > ema20_m15[i] > ema50_m15[i] and ema8_h1[i] > ema20_h1[i] > ema50_h1[i]
-        sell_trend = ema8_m15[i] < ema20_m15[i] < ema50_m15[i] and ema8_h1[i] < ema20_h1[i] < ema50_h1[i]
-
-        if abs(ema8_m15[i] - ema20_m15[i]) < 0.0003:
-            continue
-
-        ema_touch = (
-            abs(last["low"] - ema8_m15[i]) < 0.0005 or
-            abs(last["low"] - ema20_m15[i]) < 0.0005 or
-            abs(last["high"] - ema8_m15[i]) < 0.0005 or
-            abs(last["high"] - ema20_m15[i]) < 0.0005
-        )
-
-        entry = None
-        sl = None
-        tp = None
-        direction = None
-
-        if buy_trend and is_bullish_pin(last) and ema_touch:
-            entry = last["high"] + 2 * pip
-            sl = last["low"] - 2 * pip
-            tp = entry + (entry - sl) * 2
-            direction = "BUY"
-
-        elif sell_trend and is_bearish_pin(last) and ema_touch:
-            entry = last["low"] - 2 * pip
-            sl = last["high"] + 2 * pip
-            tp = entry - (sl - entry) * 2
-            direction = "SELL"
-
-        if not entry:
-            continue
-
-        outcome = None
-
-        for j in range(i + 1, i + 10):
-            candle = m15[j]
-
-            if direction == "BUY":
-                if candle["low"] <= sl:
-                    outcome = "SL"
-                    break
-                if candle["high"] >= tp:
-                    outcome = "TP"
-                    break
-
-            elif direction == "SELL":
-                if candle["high"] >= sl:
-                    outcome = "SL"
-                    break
-                if candle["low"] <= tp:
-                    outcome = "TP"
-                    break
-
-        if outcome == "TP":
-            wins += 1
-            total_r += 2
-
-        elif outcome == "SL":
-            losses += 1
-            total_r -= 1
-
-    total = wins + losses
-    win_rate = (wins / total * 100) if total > 0 else 0
-
-    return {
-        "pair": pair,
-        "trades": total,
-        "wins": wins,
-        "losses": losses,
-        "win_rate": round(win_rate, 2),
-        "net_R": total_r
-    }
