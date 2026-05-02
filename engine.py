@@ -4,18 +4,16 @@ from datetime import datetime, timedelta
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 
 # ===============================
-# SESSION FILTER (London + New York)
+# SESSION FILTER
 # ===============================
 def is_trading_session():
     now = datetime.utcnow()
     hour = now.hour
-
-    # Trade only between 08:00 and 21:00 UTC
     return 8 <= hour <= 21
 
 
 # ===============================
-# FETCH MARKET DATA
+# FETCH DATA
 # ===============================
 def fetch_data(symbol, interval="15min"):
     url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=100&apikey=d93af08b103e43c99034dd6362a239d3"
@@ -28,59 +26,72 @@ def fetch_data(symbol, interval="15min"):
 
 
 # ===============================
-# SIMPLE EMA CALCULATION
+# EMA CALCULATION
 # ===============================
-def calculate_ema(prices, period):
-    ema = []
+def ema(prices, period):
     k = 2 / (period + 1)
+    result = []
 
-    for i, price in enumerate(prices):
-        price = float(price)
-
+    for i, p in enumerate(prices):
+        p = float(p)
         if i == 0:
-            ema.append(price)
+            result.append(p)
         else:
-            ema.append(price * k + ema[i - 1] * (1 - k))
+            result.append(p * k + result[i - 1] * (1 - k))
 
-    return ema
+    return result
+
+
+# ===============================
+# VOLATILITY FILTER (NEW)
+# ===============================
+def is_volatile(highs, lows, min_range=0.0015):
+    """
+    Checks if market has enough movement
+    """
+    candle_range = abs(float(highs[-1]) - float(lows[-1]))
+
+    return candle_range >= min_range
 
 
 # ===============================
 # GENERATE SIGNALS
 # ===============================
 def generate_signals():
+
     if not is_trading_session():
         return []
 
     signals = []
 
     for pair in PAIRS:
+
         data = fetch_data(pair, "15min")
 
         if len(data) < 50:
             continue
 
-        closes = [float(c["close"]) for c in data]
-        highs = [float(c["high"]) for c in data]
-        lows = [float(c["low"]) for c in data]
+        closes = [float(x["close"]) for x in data]
+        highs = [float(x["high"]) for x in data]
+        lows = [float(x["low"]) for x in data]
 
-        ema8 = calculate_ema(closes, 8)
-        ema20 = calculate_ema(closes, 20)
-        ema50 = calculate_ema(closes, 50)
+        # 🔴 VOLATILITY FILTER (NEW)
+        if not is_volatile(highs, lows):
+            continue
+
+        ema8 = ema(closes, 8)
+        ema20 = ema(closes, 20)
+        ema50 = ema(closes, 50)
 
         i = -1
 
-        # TREND
         buy_trend = ema8[i] > ema20[i] > ema50[i]
         sell_trend = ema8[i] < ema20[i] < ema50[i]
 
-        # PULLBACK (touch EMA)
-        ema_touch_buy = abs(lows[i] - ema8[i]) < 0.0015
-        ema_touch_sell = abs(highs[i] - ema8[i]) < 0.0015
-
         now = datetime.utcnow()
 
-        if buy_trend and ema_touch_buy:
+        # BUY
+        if buy_trend:
             entry = highs[i] + 0.0002
             sl = lows[i] - 0.0002
             tp = entry + (entry - sl) * 2
@@ -97,7 +108,8 @@ def generate_signals():
                 "status": "ACTIVE"
             })
 
-        elif sell_trend and ema_touch_sell:
+        # SELL
+        elif sell_trend:
             entry = lows[i] - 0.0002
             sl = highs[i] + 0.0002
             tp = entry - (sl - entry) * 2
@@ -118,12 +130,14 @@ def generate_signals():
 
 
 # ===============================
-# UPDATE SIGNAL STATUS
+# UPDATE STATUS
 # ===============================
 def update_signal_status(signals):
+
     updated = []
 
     for s in signals:
+
         pair = s["pair"]
         data = fetch_data(pair, "1min")
 
@@ -135,10 +149,13 @@ def update_signal_status(signals):
         now = datetime.utcnow()
 
         if s["status"] == "ACTIVE":
+
             if price >= s["tp"]:
                 s["status"] = "TP HIT"
+
             elif price <= s["sl"]:
                 s["status"] = "SL HIT"
+
             elif now > datetime.fromisoformat(s["expiry"]):
                 s["status"] = "EXPIRED"
 
