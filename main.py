@@ -1,75 +1,111 @@
 from fastapi import FastAPI
 from engine import generate_signals, update_signal_status
-import datetime
+import json
+import os
 
 app = FastAPI()
 
-# 🔹 STORAGE
-active_signals = []
-history_signals = []
+DB_FILE = "db.json"
 
 
-# 🔹 HOME
+# ===============================
+# LOAD DATABASE
+# ===============================
+def load_db():
+    if not os.path.exists(DB_FILE):
+        return {"active": [], "history": []}
+
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
+
+
+# ===============================
+# SAVE DATABASE
+# ===============================
+def save_db(data):
+    with open(DB_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+# ===============================
+# HOME
+# ===============================
 @app.get("/")
 def home():
     return {"status": "Bot running"}
 
 
-# 🔹 RUN ENGINE
+# ===============================
+# RUN ENGINE
+# ===============================
 @app.get("/run")
 def run_engine():
-    global active_signals, history_signals
 
-    try:
-        new_signals = generate_signals()
+    db = load_db()
 
-        # ✅ ADD ONLY NEW SIGNALS (avoid duplicates)
-        for new in new_signals:
-            if not any(
-                s["pair"] == new["pair"] and s["time"] == new["time"]
-                for s in active_signals
-            ):
-                active_signals.append(new)
+    active = db["active"]
+    history = db["history"]
 
-        # 🔄 UPDATE STATUS (TP / SL / EXPIRED)
-        updated = update_signal_status(active_signals)
+    new_signals = generate_signals()
 
-        still_active = []
+    # ADD NEW SIGNALS
+    for new in new_signals:
+        if not any(
+            s["pair"] == new["pair"] and s["time"] == new["time"]
+            for s in active
+        ):
+            active.append(new)
 
-        for s in updated:
-            if s["status"] in ["TP HIT", "SL HIT", "EXPIRED"]:
-                history_signals.append(s)
-            else:
-                still_active.append(s)
+    # UPDATE STATUS
+    updated = update_signal_status(active)
 
-        active_signals = still_active
+    still_active = []
 
-        return {
-            "active": active_signals,
-            "history": history_signals[-20:]
-        }
+    for s in updated:
+        if s["status"] in ["TP HIT", "SL HIT", "EXPIRED"]:
+            history.append(s)
+        else:
+            still_active.append(s)
 
-    except Exception as e:
-        return {"error": str(e)}
+    db["active"] = still_active
+    db["history"] = history
+
+    save_db(db)
+
+    return {
+        "active": still_active,
+        "history": history[-20:]
+    }
 
 
-# 🔹 GET ACTIVE SIGNALS
+# ===============================
+# GET SIGNALS
+# ===============================
 @app.get("/signals")
 def get_signals():
-    return active_signals
+    db = load_db()
+    return db["active"]
 
 
-# 🔹 GET HISTORY
+# ===============================
+# GET HISTORY
+# ===============================
 @app.get("/history")
 def get_history():
-    return history_signals[-50:]
+    db = load_db()
+    return db["history"][-50:]
 
 
-# 🔹 GET STATS (REAL)
+# ===============================
+# GET STATS
+# ===============================
 @app.get("/stats")
 def get_stats():
-    wins = sum(1 for s in history_signals if s["status"] == "TP HIT")
-    losses = sum(1 for s in history_signals if s["status"] == "SL HIT")
+    db = load_db()
+    history = db["history"]
+
+    wins = sum(1 for s in history if s["status"] == "TP HIT")
+    losses = sum(1 for s in history if s["status"] == "SL HIT")
     total = wins + losses
 
     win_rate = (wins / total * 100) if total > 0 else 0
