@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 
-API_KEY = "YOUR_API_KEY"
+API_KEY = "d93af08b103e43c99034dd6362a239d3"
 
 # ===============================
 # SESSION FILTER
