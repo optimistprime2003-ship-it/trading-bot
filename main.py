@@ -1,118 +1,208 @@
-from fastapi import FastAPI
-from engine import generate_signals, update_signal_status
-import json
-import os
+import requests
+from datetime import datetime, timedelta
 
-app = FastAPI()
+PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 
-DB_FILE = "db.json"
+API_KEY = "YOUR_API_KEY"
+
+# ===============================
+# SESSION FILTER
+# ===============================
+def is_trading_session():
+    now = datetime.utcnow()
+    return 8 <= now.hour <= 21
 
 
 # ===============================
-# LOAD DATABASE
+# FETCH DATA
 # ===============================
-def load_db():
-    if not os.path.exists(DB_FILE):
-        return {"active": [], "history": []}
+def fetch_data(symbol, interval="15min"):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=100&apikey={API_KEY}"
+    res = requests.get(url).json()
 
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+    if "values" not in res:
+        return []
 
-
-# ===============================
-# SAVE DATABASE
-# ===============================
-def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    return list(reversed(res["values"]))
 
 
 # ===============================
-# HOME
+# EMA
 # ===============================
-@app.get("/")
-def home():
-    return {"status": "Bot running"}
+def ema(prices, period):
+    k = 2 / (period + 1)
+    result = []
 
-
-# ===============================
-# RUN ENGINE
-# ===============================
-@app.get("/run")
-def run_engine():
-
-    db = load_db()
-
-    active = db["active"]
-    history = db["history"]
-
-    new_signals = generate_signals()
-
-    # ADD NEW SIGNALS
-    for new in new_signals:
-        if not any(
-            s["pair"] == new["pair"] and s["time"] == new["time"]
-            for s in active
-        ):
-            active.append(new)
-
-    # UPDATE STATUS
-    updated = update_signal_status(active)
-
-    still_active = []
-
-    for s in updated:
-        if s["status"] in ["TP HIT", "SL HIT", "EXPIRED"]:
-            history.append(s)
+    for i, p in enumerate(prices):
+        p = float(p)
+        if i == 0:
+            result.append(p)
         else:
-            still_active.append(s)
+            result.append(p * k + result[i - 1] * (1 - k))
 
-    db["active"] = still_active
-    db["history"] = history
-
-    save_db(db)
-
-    return {
-        "active": still_active,
-        "history": history[-20:]
-    }
+    return result
 
 
 # ===============================
-# GET SIGNALS
+# PIN BAR DETECTION
 # ===============================
-@app.get("/signals")
-def get_signals():
-    db = load_db()
-    return db["active"]
+def is_bullish_pin(open_p, close_p, high_p, low_p):
+    body = abs(close_p - open_p)
+    candle = high_p - low_p
+
+    lower_part = min(open_p, close_p) - low_p
+    upper_part = high_p - max(open_p, close_p)
+
+    if candle == 0:
+        return False
+
+    # Open/close in lower 30%
+    return (max(open_p, close_p) < low_p + candle * 0.3) and (upper_part < body)
+
+
+def is_bearish_pin(open_p, close_p, high_p, low_p):
+    body = abs(close_p - open_p)
+    candle = high_p - low_p
+
+    lower_part = min(open_p, close_p) - low_p
+    upper_part = high_p - max(open_p, close_p)
+
+    if candle == 0:
+        return False
+
+    # Open/close in upper 30%
+    return (min(open_p, close_p) > high_p - candle * 0.3) and (lower_part < body)
 
 
 # ===============================
-# GET HISTORY
+# VOLATILITY FILTER (SOFT)
 # ===============================
-@app.get("/history")
-def get_history():
-    db = load_db()
-    return db["history"][-50:]
+def is_volatile(highs, lows):
+    return abs(highs[-1] - lows[-1]) >= 0.0008
 
 
 # ===============================
-# GET STATS
+# GENERATE SIGNALS
 # ===============================
-@app.get("/stats")
-def get_stats():
-    db = load_db()
-    history = db["history"]
+def generate_signals():
 
-    wins = sum(1 for s in history if s["status"] == "TP HIT")
-    losses = sum(1 for s in history if s["status"] == "SL HIT")
-    total = wins + losses
+    if not is_trading_session():
+        return []
 
-    win_rate = (wins / total * 100) if total > 0 else 0
+    signals = []
 
-    return {
-        "total_trades": total,
-        "wins": wins,
-        "losses": losses,
-        "win_rate": round(win_rate, 2)
-    }
+    for pair in PAIRS:
+
+        data = fetch_data(pair, "15min")
+
+        if len(data) < 60:
+            continue
+
+        closes = [float(x["close"]) for x in data]
+        highs = [float(x["high"]) for x in data]
+        lows = [float(x["low"]) for x in data]
+        opens = [float(x["open"]) for x in data]
+
+        # Volatility check
+        if not is_volatile(highs, lows):
+            continue
+
+        ema8 = ema(closes, 8)
+        ema20 = ema(closes, 20)
+        ema50 = ema(closes, 50)
+
+        i = -1
+
+        open_p = opens[i]
+        close_p = closes[i]
+        high_p = highs[i]
+        low_p = lows[i]
+
+        now = datetime.utcnow()
+
+        # ================= BUY =================
+        if (
+            ema8[i] > ema20[i] > ema50[i]
+            and is_bullish_pin(open_p, close_p, high_p, low_p)
+            and low_p <= ema8[i]
+        ):
+            entry = high_p + 0.0002
+            sl = low_p - 0.0002
+            tp = entry + (entry - sl)  # 1:1
+
+            signals.append({
+                "pair": pair,
+                "signal": "BUY",
+                "type": "BUY STOP",
+                "entry": round(entry, 5),
+                "sl": round(sl, 5),
+                "tp": round(tp, 5),
+                "time": str(now),
+                "expiry": str(now + timedelta(days=1)),
+                "status": "ACTIVE"
+            })
+
+        # ================= SELL =================
+        elif (
+            ema8[i] < ema20[i] < ema50[i]
+            and is_bearish_pin(open_p, close_p, high_p, low_p)
+            and high_p >= ema8[i]
+        ):
+            entry = low_p - 0.0002
+            sl = high_p + 0.0002
+            tp = entry - (sl - entry)  # 1:1
+
+            signals.append({
+                "pair": pair,
+                "signal": "SELL",
+                "type": "SELL STOP",
+                "entry": round(entry, 5),
+                "sl": round(sl, 5),
+                "tp": round(tp, 5),
+                "time": str(now),
+                "expiry": str(now + timedelta(days=1)),
+                "status": "ACTIVE"
+            })
+
+    return signals
+
+
+# ===============================
+# UPDATE STATUS
+# ===============================
+def update_signal_status(signals):
+
+    updated = []
+
+    for s in signals:
+
+        pair = s["pair"]
+        data = fetch_data(pair, "1min")
+
+        if not data:
+            updated.append(s)
+            continue
+
+        price = float(data[-1]["close"])
+        now = datetime.utcnow()
+
+        if s["status"] == "ACTIVE":
+
+            if s["signal"] == "BUY":
+                if price >= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price <= s["sl"]:
+                    s["status"] = "SL HIT"
+
+            elif s["signal"] == "SELL":
+                if price <= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price >= s["sl"]:
+                    s["status"] = "SL HIT"
+
+            elif now > datetime.fromisoformat(s["expiry"]):
+                s["status"] = "EXPIRED"
+
+        updated.append(s)
+
+    return updated
