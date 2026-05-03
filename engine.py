@@ -3,20 +3,21 @@ from datetime import datetime, timedelta
 
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 
+API_KEY = "YOUR_API_KEY"
+
 # ===============================
 # SESSION FILTER
 # ===============================
 def is_trading_session():
     now = datetime.utcnow()
-    hour = now.hour
-    return 8 <= hour <= 21
+    return 8 <= now.hour <= 21
 
 
 # ===============================
 # FETCH DATA
 # ===============================
 def fetch_data(symbol, interval="15min"):
-    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=100&apikey=d93af08b103e43c99034dd6362a239d3"
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=100&apikey={API_KEY}"
     res = requests.get(url).json()
 
     if "values" not in res:
@@ -26,7 +27,7 @@ def fetch_data(symbol, interval="15min"):
 
 
 # ===============================
-# EMA CALCULATION
+# EMA
 # ===============================
 def ema(prices, period):
     k = 2 / (period + 1)
@@ -43,15 +44,41 @@ def ema(prices, period):
 
 
 # ===============================
-# VOLATILITY FILTER (NEW)
+# PIN BAR DETECTION
 # ===============================
-def is_volatile(highs, lows, min_range=0.0015):
-    """
-    Checks if market has enough movement
-    """
-    candle_range = abs(float(highs[-1]) - float(lows[-1]))
+def is_bullish_pin(open_p, close_p, high_p, low_p):
+    body = abs(close_p - open_p)
+    candle = high_p - low_p
 
-    return candle_range >= min_range
+    lower_part = min(open_p, close_p) - low_p
+    upper_part = high_p - max(open_p, close_p)
+
+    if candle == 0:
+        return False
+
+    # Open/close in lower 30%
+    return (max(open_p, close_p) < low_p + candle * 0.3) and (upper_part < body)
+
+
+def is_bearish_pin(open_p, close_p, high_p, low_p):
+    body = abs(close_p - open_p)
+    candle = high_p - low_p
+
+    lower_part = min(open_p, close_p) - low_p
+    upper_part = high_p - max(open_p, close_p)
+
+    if candle == 0:
+        return False
+
+    # Open/close in upper 30%
+    return (min(open_p, close_p) > high_p - candle * 0.3) and (lower_part < body)
+
+
+# ===============================
+# VOLATILITY FILTER (SOFT)
+# ===============================
+def is_volatile(highs, lows):
+    return abs(highs[-1] - lows[-1]) >= 0.0008
 
 
 # ===============================
@@ -68,14 +95,15 @@ def generate_signals():
 
         data = fetch_data(pair, "15min")
 
-        if len(data) < 50:
+        if len(data) < 60:
             continue
 
         closes = [float(x["close"]) for x in data]
         highs = [float(x["high"]) for x in data]
         lows = [float(x["low"]) for x in data]
+        opens = [float(x["open"]) for x in data]
 
-        # 🔴 VOLATILITY FILTER (NEW)
+        # Volatility check
         if not is_volatile(highs, lows):
             continue
 
@@ -85,16 +113,22 @@ def generate_signals():
 
         i = -1
 
-        buy_trend = ema8[i] > ema20[i] > ema50[i]
-        sell_trend = ema8[i] < ema20[i] < ema50[i]
+        open_p = opens[i]
+        close_p = closes[i]
+        high_p = highs[i]
+        low_p = lows[i]
 
         now = datetime.utcnow()
 
-        # BUY
-        if buy_trend:
-            entry = highs[i] + 0.0002
-            sl = lows[i] - 0.0002
-            tp = entry + (entry - sl) * 2
+        # ================= BUY =================
+        if (
+            ema8[i] > ema20[i] > ema50[i]
+            and is_bullish_pin(open_p, close_p, high_p, low_p)
+            and low_p <= ema8[i]
+        ):
+            entry = high_p + 0.0002
+            sl = low_p - 0.0002
+            tp = entry + (entry - sl)  # 1:1
 
             signals.append({
                 "pair": pair,
@@ -104,15 +138,19 @@ def generate_signals():
                 "sl": round(sl, 5),
                 "tp": round(tp, 5),
                 "time": str(now),
-                "expiry": str(now + timedelta(hours=4)),
+                "expiry": str(now + timedelta(days=1)),
                 "status": "ACTIVE"
             })
 
-        # SELL
-        elif sell_trend:
-            entry = lows[i] - 0.0002
-            sl = highs[i] + 0.0002
-            tp = entry - (sl - entry) * 2
+        # ================= SELL =================
+        elif (
+            ema8[i] < ema20[i] < ema50[i]
+            and is_bearish_pin(open_p, close_p, high_p, low_p)
+            and high_p >= ema8[i]
+        ):
+            entry = low_p - 0.0002
+            sl = high_p + 0.0002
+            tp = entry - (sl - entry)  # 1:1
 
             signals.append({
                 "pair": pair,
@@ -122,7 +160,7 @@ def generate_signals():
                 "sl": round(sl, 5),
                 "tp": round(tp, 5),
                 "time": str(now),
-                "expiry": str(now + timedelta(hours=4)),
+                "expiry": str(now + timedelta(days=1)),
                 "status": "ACTIVE"
             })
 
@@ -150,11 +188,17 @@ def update_signal_status(signals):
 
         if s["status"] == "ACTIVE":
 
-            if price >= s["tp"]:
-                s["status"] = "TP HIT"
+            if s["signal"] == "BUY":
+                if price >= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price <= s["sl"]:
+                    s["status"] = "SL HIT"
 
-            elif price <= s["sl"]:
-                s["status"] = "SL HIT"
+            elif s["signal"] == "SELL":
+                if price <= s["tp"]:
+                    s["status"] = "TP HIT"
+                elif price >= s["sl"]:
+                    s["status"] = "SL HIT"
 
             elif now > datetime.fromisoformat(s["expiry"]):
                 s["status"] = "EXPIRED"
