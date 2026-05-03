@@ -1,191 +1,205 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trading Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #fff;
       margin: 0;
-      padding: 10px;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+    }
+
+    header {
+      text-align: center;
+      padding: 15px;
+      background: #020617;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      background: #020617;
+    }
+
+    .tab {
+      padding: 12px;
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+
+    .active-tab {
+      background: #1e293b;
+      font-weight: bold;
     }
 
     .container {
-      max-width: 600px;
-      margin: auto;
-    }
-
-    .header {
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
-    h2 {
-      margin-top: 20px;
-      font-size: 18px;
+      padding: 10px;
     }
 
     .card {
       background: #1e293b;
       padding: 12px;
-      margin: 8px 0;
+      margin-bottom: 10px;
       border-radius: 10px;
-      font-size: 14px;
+      animation: fadeIn 0.4s ease;
     }
 
     .buy { border-left: 5px solid #22c55e; }
     .sell { border-left: 5px solid #ef4444; }
 
-    .expired { opacity: 0.6; }
+    .strategy {
+      font-size: 12px;
+      color: #38bdf8;
+    }
 
-    .stats {
-      display: flex;
-      justify-content: space-between;
-      background: #020617;
+    .price {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .stats-box {
+      background: #1e293b;
       padding: 10px;
       border-radius: 10px;
+      margin-bottom: 10px;
     }
 
-    .stat {
-      text-align: center;
-      font-size: 12px;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      background: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 
 <body>
 
-<div class="container">
+<header>📊 Trading Dashboard</header>
 
-<div class="header">📊 Trading Dashboard</div>
-
-<h2>Stats</h2>
-<div class="stats" id="stats">Loading...</div>
-
-<button onclick="runBot()">🔄 Refresh Signals</button>
-
-<h2>📡 Active Signals</h2>
-<div id="signals">Loading...</div>
-
-<h2>📁 History</h2>
-<div id="history">Loading...</div>
-
+<div class="tabs">
+  <div class="tab active-tab" onclick="switchTab('signals')">Signals</div>
+  <div class="tab" onclick="switchTab('history')">History</div>
+  <div class="tab" onclick="switchTab('stats')">Stats</div>
 </div>
 
+<div class="container" id="content"></div>
+
+<audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+
 <script>
-const base = "https://trading-signal-bot-7bb3.onrender.com";
+const API = "https://trading-signal-bot-7bb3.onrender.com";
 
-// 🔔 SOUND SETUP
 let lastSignalCount = 0;
-const alertSound = new Audio("https://www.soundjay.com/buttons/sounds/beep-07.mp3");
 
-// RUN BOT
-async function runBot() {
-  await fetch(base + "/run");
-  loadAll();
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active-tab"));
+  event.target.classList.add("active-tab");
+
+  if (tab === "signals") loadSignals();
+  if (tab === "history") loadHistory();
+  if (tab === "stats") loadStats();
 }
 
-// LOAD STATS
-async function loadStats() {
-  const res = await fetch(base + "/stats");
-  const data = await res.json();
-
-  document.getElementById("stats").innerHTML = `
-    <div class="stat">Trades<br><b>${data.total_trades}</b></div>
-    <div class="stat">Wins<br><b>${data.wins}</b></div>
-    <div class="stat">Losses<br><b>${data.losses}</b></div>
-    <div class="stat">Win Rate<br><b>${data.win_rate}%</b></div>
-  `;
-}
-
-// LOAD SIGNALS + SOUND
+// ================= SIGNALS =================
 async function loadSignals() {
-  const res = await fetch(base + "/signals");
+  const res = await fetch(API + "/signals");
   const data = await res.json();
 
-  // 🔔 PLAY SOUND WHEN NEW SIGNAL APPEARS
-  if (data.length > lastSignalCount && lastSignalCount !== 0) {
-    alertSound.play().catch(() => {});
+  let html = "";
+
+  if (data.length > lastSignalCount) {
+    document.getElementById("alertSound").play();
   }
 
   lastSignalCount = data.length;
 
-  if (data.length === 0) {
-    document.getElementById("signals").innerHTML = "No active signals";
-    return;
-  }
-
-  let html = "";
-
   data.forEach(s => {
     html += `
-      <div class="card ${s.signal === "BUY" ? "buy" : "sell"}">
-        <b>${s.pair}</b> (${s.type})<br>
-        Entry: ${s.entry}<br>
-        SL: ${s.sl}<br>
-        TP: ${s.tp}<br>
-        Status: ${s.status}<br>
-        Time: ${s.time}
+      <div class="card ${s.signal === 'BUY' ? 'buy' : 'sell'}">
+        <div><b>${s.signal} ${s.pair}</b></div>
+        <div class="strategy">${s.strategy}</div>
+        <div class="price">Entry: ${s.entry}</div>
+        <div class="price">SL: ${s.sl}</div>
+        <div class="price">TP: ${s.tp}</div>
+        <div class="price">Status: ${s.status}</div>
       </div>
     `;
   });
 
-  document.getElementById("signals").innerHTML = html;
+  document.getElementById("content").innerHTML = html || "No signals yet";
 }
 
-// LOAD HISTORY
+// ================= HISTORY =================
 async function loadHistory() {
-  const res = await fetch(base + "/history");
+  const res = await fetch(API + "/history");
   const data = await res.json();
-
-  if (data.length === 0) {
-    document.getElementById("history").innerHTML = "No history yet";
-    return;
-  }
 
   let html = "";
 
   data.slice().reverse().forEach(s => {
     html += `
-      <div class="card expired">
-        <b>${s.pair}</b><br>
-        Result: ${s.status}
+      <div class="card">
+        <div><b>${s.signal} ${s.pair}</b></div>
+        <div class="strategy">${s.strategy}</div>
+        <div>Status: ${s.status}</div>
       </div>
     `;
   });
 
-  document.getElementById("history").innerHTML = html;
+  document.getElementById("content").innerHTML = html || "No history yet";
 }
 
-// LOAD ALL
-async function loadAll() {
-  loadStats();
-  loadSignals();
-  loadHistory();
+// ================= STATS =================
+async function loadStats() {
+  const res = await fetch(API + "/stats");
+  const data = await res.json();
+
+  let html = `
+    <div class="stats-box">
+      <b>Overall</b><br>
+      Trades: ${data.overall.total_trades}<br>
+      Wins: ${data.overall.wins}<br>
+      Losses: ${data.overall.losses}<br>
+      Win Rate: ${data.overall.win_rate}%
+    </div>
+  `;
+
+  for (let strat in data.by_strategy) {
+    let s = data.by_strategy[strat];
+
+    html += `
+      <div class="stats-box">
+        <b>${strat}</b><br>
+        Trades: ${s.total}<br>
+        Wins: ${s.wins}<br>
+        Losses: ${s.losses}<br>
+        Win Rate: ${s.win_rate}%
+      </div>
+    `;
+  }
+
+  document.getElementById("content").innerHTML = html;
 }
 
-// AUTO REFRESH EVERY 30 SECONDS
-setInterval(loadAll, 30000);
+// ================= AUTO REFRESH =================
+setInterval(() => {
+  let active = document.querySelector(".active-tab").innerText;
 
-// INITIAL LOAD
-loadAll();
+  if (active === "Signals") loadSignals();
+  if (active === "History") loadHistory();
+  if (active === "Stats") loadStats();
+}, 10000);
+
+// Load default
+loadSignals();
+
 </script>
 
 </body>
 </html>
+
