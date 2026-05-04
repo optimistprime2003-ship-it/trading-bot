@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from engine import generate_signals, update_signal_status # Cleaned up import
+from engine import generate_signals, update_signal_status
 import json
 import os
 
@@ -26,11 +26,12 @@ def run_engine():
     active = db["active"]
     history = db["history"]
 
-    # This now calls the combined signal function in engine.py
+    # This function now internally checks for News before returning signals
     new_signals = generate_signals()
 
     for new in new_signals:
-        if not any(s["pair"] == new["pair"] and s["strategy"] == new["strategy"] and s["time"] == new["time"] for s in active):
+        # Avoid duplicates based on Pair, Strategy, and Type
+        if not any(s["pair"] == new["pair"] and s["strategy"] == new["strategy"] and s["type"] == new["type"] for s in active):
             active.append(new)
 
     updated = update_signal_status(active)
@@ -80,4 +81,7 @@ def get_stats():
         total_s = strategy_stats[strat]["total"]
         strategy_stats[strat]["win_rate"] = round((strategy_stats[strat]["wins"] / total_s * 100) if total_s > 0 else 0, 2)
 
-    return {"overall": {"total_trades": total, "wins": wins, "losses": losses, "win_rate": round(win_rate, 2)}, "by_strategy": strategy_stats}
+    return {
+        "overall": {"total_trades": total, "wins": wins, "losses": losses, "win_rate": round(win_rate, 2)},
+        "by_strategy": strategy_stats
+    }
