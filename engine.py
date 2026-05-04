@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytz
 
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
-API_KEY = "my Api key" # Ensure your Twelve Data API key is here
+API_KEY = "d93af08b103e43c99034dd6362a239d3 " # Ensure your Twelve Data API key is here
 NY_TZ = pytz.timezone("America/New_York")
 
 # ===============================
