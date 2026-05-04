@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from engine import generate_signals, update_signal_status
+# In main.py
+from engine import generate_pinbar_signals, update_signal_status
 import json
 import os
 
