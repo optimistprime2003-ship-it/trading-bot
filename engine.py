@@ -126,12 +126,19 @@ def generate_pinbar_signals():
 # ===============================
 # FAKE BREAKOUT (CORRECT NY RANGE)
 # ===============================
+
 import pytz
 
 NY_TZ = pytz.timezone("America/New_York")
 
 
 def is_same_ny_day(dt1, dt2):
+    # Make datetimes timezone-aware
+    if dt1.tzinfo is None:
+        dt1 = pytz.utc.localize(dt1)
+    if dt2.tzinfo is None:
+        dt2 = pytz.utc.localize(dt2)
+
     return dt1.astimezone(NY_TZ).date() == dt2.astimezone(NY_TZ).date()
 
 
@@ -163,10 +170,10 @@ def generate_fake_breakout_signals():
             prev = data_5m[i - 1]
 
             dt = datetime.fromisoformat(candle["datetime"])
-            prev_dt = datetime.fromisoformat(prev["datetime"])
+            now = datetime.utcnow()
 
             # Only trade same NY day
-            if not is_same_ny_day(dt, datetime.utcnow()):
+            if not is_same_ny_day(dt, now):
                 continue
 
             close = float(candle["close"])
@@ -179,13 +186,11 @@ def generate_fake_breakout_signals():
             # ===============================
             if not breakout_active:
 
-                # Break above
                 if prev_close > range_high:
                     breakout_active = True
                     breakout_direction = "above"
                     breakout_extreme = float(prev["high"])
 
-                # Break below
                 elif prev_close < range_low:
                     breakout_active = True
                     breakout_direction = "below"
@@ -207,9 +212,7 @@ def generate_fake_breakout_signals():
             # ===============================
             if breakout_active:
 
-                now = datetime.utcnow()
-
-                # SELL setup (break above → back inside)
+                # SELL
                 if breakout_direction == "above" and close < range_high:
 
                     entry = close
@@ -220,16 +223,18 @@ def generate_fake_breakout_signals():
                         "pair": pair,
                         "strategy": "FakeBreakout",
                         "signal": "SELL",
+                        "type": "MARKET",
                         "entry": round(entry, 5),
                         "sl": round(sl, 5),
                         "tp": round(tp, 5),
                         "time": str(now),
+                        "expiry": str(now + timedelta(days=1)),
                         "status": "ACTIVE"
                     })
 
                     breakout_active = False
 
-                # BUY setup (break below → back inside)
+                # BUY
                 elif breakout_direction == "below" and close > range_low:
 
                     entry = close
@@ -240,10 +245,12 @@ def generate_fake_breakout_signals():
                         "pair": pair,
                         "strategy": "FakeBreakout",
                         "signal": "BUY",
+                        "type": "MARKET",
                         "entry": round(entry, 5),
                         "sl": round(sl, 5),
                         "tp": round(tp, 5),
                         "time": str(now),
+                        "expiry": str(now + timedelta(days=1)),
                         "status": "ACTIVE"
                     })
 
