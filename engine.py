@@ -1,12 +1,11 @@
 import requests
 from datetime import datetime, timedelta
+import pytz
 
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 API_KEY = "d93af08b103e43c99034dd6362a239d3"
+NY_TZ = pytz.timezone("America/New_York")
 
-# ===============================
-# FETCH DATA
-# ===============================
 def fetch_data(symbol, interval):
     url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize=200&apikey={API_KEY}"
     res = requests.get(url).json()
@@ -14,10 +13,6 @@ def fetch_data(symbol, interval):
         return []
     return list(reversed(res["values"]))
 
-
-# ===============================
-# EMA
-# ===============================
 def ema(prices, period):
     k = 2 / (period + 1)
     result = []
@@ -29,231 +24,99 @@ def ema(prices, period):
             result.append(p * k + result[i - 1] * (1 - k))
     return result
 
-
-# ===============================
-# GET NY SESSION FIRST 4H RANGE
-# ===============================
 def get_ny_range(data_4h):
-
     for candle in data_4h:
         dt = datetime.fromisoformat(candle["datetime"])
-
-        # New York 00:00 ≈ 04:00 UTC (approx)
         if dt.hour == 4:
             return float(candle["high"]), float(candle["low"])
-
     return None, None
 
+def generate_signals():
+    # This combines both strategies into one call for main.py
+    return generate_pinbar_signals() + generate_fake_breakout_signals()
 
-# ===============================
-# PIN BAR STRATEGY (UNCHANGED)
-# ===============================
 def generate_pinbar_signals():
     signals = []
-
     for pair in PAIRS:
         data = fetch_data(pair, "15min")
-        if len(data) < 60:
-            continue
-
+        if len(data) < 60: continue
+        
         closes = [float(x["close"]) for x in data]
         highs = [float(x["high"]) for x in data]
         lows = [float(x["low"]) for x in data]
         opens = [float(x["open"]) for x in data]
 
-        ema8 = ema(closes, 8)
-        ema20 = ema(closes, 20)
-        ema50 = ema(closes, 50)
-
+        ema8, ema20, ema50 = ema(closes, 8), ema(closes, 20), ema(closes, 50)
         i = -1
         now = datetime.utcnow()
-
-        open_p = opens[i]
-        close_p = closes[i]
-        high_p = highs[i]
-        low_p = lows[i]
-
-        body = abs(close_p - open_p)
-        candle = high_p - low_p
-
-        if candle == 0:
-            continue
+        open_p, close_p, high_p, low_p = opens[i], closes[i], highs[i], lows[i]
+        body, candle = abs(close_p - open_p), high_p - low_p
+        if candle == 0: continue
 
         bullish_pin = max(open_p, close_p) < low_p + candle * 0.3
         bearish_pin = min(open_p, close_p) > high_p - candle * 0.3
 
-        # BUY
         if ema8[i] > ema20[i] > ema50[i] and bullish_pin:
             entry = high_p + 0.0002
             sl = low_p - 0.0002
-            tp = entry + (entry - sl)
-
-            signals.append({
-                "pair": pair,
-                "strategy": "PinBar",
-                "signal": "BUY",
-                "type": "BUY STOP",
-                "entry": round(entry, 5),
-                "sl": round(sl, 5),
-                "tp": round(tp, 5),
-                "time": str(now),
-                "expiry": str(now + timedelta(days=1)),
-                "status": "ACTIVE"
-            })
-
-        # SELL
+            signals.append({"pair": pair, "strategy": "PinBar", "signal": "BUY", "type": "BUY STOP", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry + (entry - sl), 5), "time": str(now), "expiry": str(now + timedelta(days=1)), "status": "ACTIVE"})
         elif ema8[i] < ema20[i] < ema50[i] and bearish_pin:
             entry = low_p - 0.0002
             sl = high_p + 0.0002
-            tp = entry - (sl - entry)
-
-            signals.append({
-                "pair": pair,
-                "strategy": "PinBar",
-                "signal": "SELL",
-                "type": "SELL STOP",
-                "entry": round(entry, 5),
-                "sl": round(sl, 5),
-                "tp": round(tp, 5),
-                "time": str(now),
-                "expiry": str(now + timedelta(days=1)),
-                "status": "ACTIVE"
-            })
-
+            signals.append({"pair": pair, "strategy": "PinBar", "signal": "SELL", "type": "SELL STOP", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry - (sl - entry), 5), "time": str(now), "expiry": str(now + timedelta(days=1)), "status": "ACTIVE"})
     return signals
 
-
-# ===============================
-# FAKE BREAKOUT (CORRECT NY RANGE)
-# ===============================
-
-import pytz
-
-NY_TZ = pytz.timezone("America/New_York")
-
-
 def is_same_ny_day(dt1, dt2):
-    # Make datetimes timezone-aware
-    if dt1.tzinfo is None:
-        dt1 = pytz.utc.localize(dt1)
-    if dt2.tzinfo is None:
-        dt2 = pytz.utc.localize(dt2)
-
+    if dt1.tzinfo is None: dt1 = pytz.utc.localize(dt1)
+    if dt2.tzinfo is None: dt2 = pytz.utc.localize(dt2)
     return dt1.astimezone(NY_TZ).date() == dt2.astimezone(NY_TZ).date()
-
 
 def generate_fake_breakout_signals():
     signals = []
-
     for pair in PAIRS:
-
         data_4h = fetch_data(pair, "4h")
         data_5m = fetch_data(pair, "5min")
+        if len(data_4h) < 10 or len(data_5m) < 50: continue
 
-        if len(data_4h) < 10 or len(data_5m) < 50:
-            continue
-
-        first_candle = get_ny_first_4h_candle(data_4h)
-        if not first_candle:
-            continue
-
-        range_high = float(first_candle["high"])
-        range_low = float(first_candle["low"])
+        # Fixed function name call here
+        range_high, range_low = get_ny_range(data_4h)
+        if range_high is None: continue
 
         breakout_active = False
         breakout_direction = None
         breakout_extreme = None
 
         for i in range(2, len(data_5m)):
-
             candle = data_5m[i]
-            prev = data_5m[i - 1]
-
             dt = datetime.fromisoformat(candle["datetime"])
             now = datetime.utcnow()
+            if not is_same_ny_day(dt, now): continue
 
-            # Only trade same NY day
-            if not is_same_ny_day(dt, now):
-                continue
+            close, high, low = float(candle["close"]), float(candle["high"]), float(candle["low"])
+            prev_close = float(data_5m[i-1]["close"])
 
-            close = float(candle["close"])
-            prev_close = float(prev["close"])
-            high = float(candle["high"])
-            low = float(candle["low"])
-
-            # ===============================
-            # STEP 1 — DETECT BREAKOUT
-            # ===============================
             if not breakout_active:
-
                 if prev_close > range_high:
-                    breakout_active = True
-                    breakout_direction = "above"
-                    breakout_extreme = float(prev["high"])
-
+                    breakout_active, breakout_direction, breakout_extreme = True, "above", float(data_5m[i-1]["high"])
                 elif prev_close < range_low:
-                    breakout_active = True
-                    breakout_direction = "below"
-                    breakout_extreme = float(prev["low"])
+                    breakout_active, breakout_direction, breakout_extreme = True, "below", float(data_5m[i-1]["low"])
 
-            # ===============================
-            # STEP 2 — TRACK EXTREME
-            # ===============================
             if breakout_active:
+                if breakout_direction == "above": breakout_extreme = max(breakout_extreme, high)
+                else: breakout_extreme = min(breakout_extreme, low)
 
-                if breakout_direction == "above":
-                    breakout_extreme = max(breakout_extreme, high)
-
-                elif breakout_direction == "below":
-                    breakout_extreme = min(breakout_extreme, low)
-
-            # ===============================
-            # STEP 3 — RE-ENTRY CONFIRMATION
-            # ===============================
-            if breakout_active:
-
-                # SELL
                 if breakout_direction == "above" and close < range_high:
-
                     entry = close
                     sl = breakout_extreme
-                    tp = entry - (sl - entry) * 2
-
-                    signals.append({
-                        "pair": pair,
-                        "strategy": "FakeBreakout",
-                        "signal": "SELL",
-                        "type": "MARKET",
-                        "entry": round(entry, 5),
-                        "sl": round(sl, 5),
-                        "tp": round(tp, 5),
-                        "time": str(now),
-                        "expiry": str(now + timedelta(days=1)),
-                        "status": "ACTIVE"
-                    })
-
+                    signals.append({"pair": pair, "strategy": "FakeBreakout", "signal": "SELL", "type": "MARKET", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry - (sl - entry) * 2, 5), "time": str(now), "expiry": str(now + timedelta(days=1)), "status": "ACTIVE"})
                     breakout_active = False
-
-                # BUY
                 elif breakout_direction == "below" and close > range_low:
-
                     entry = close
                     sl = breakout_extreme
-                    tp = entry + (entry - sl) * 2
-
-                    signals.append({
-                        "pair": pair,
-                        "strategy": "FakeBreakout",
-                        "signal": "BUY",
-                        "type": "MARKET",
-                        "entry": round(entry, 5),
-                        "sl": round(sl, 5),
-                        "tp": round(tp, 5),
-                        "time": str(now),
-                        "expiry": str(now + timedelta(days=1)),
-                        "status": "ACTIVE"
-                    })
-
+                    signals.append({"pair": pair, "strategy": "FakeBreakout", "signal": "BUY", "type": "MARKET", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry + (entry - sl) * 2, 5), "time": str(now), "expiry": str(now + timedelta(days=1)), "status": "ACTIVE"})
                     breakout_active = False
-
     return signals
+
+def update_signal_status(active_signals):
+    # Basic logic to keep signals active; implement your price-checking logic here
+    return active_signals
