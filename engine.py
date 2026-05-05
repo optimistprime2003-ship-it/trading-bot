@@ -1,155 +1,169 @@
 import requests
 import os
-from datetime import datetime, timedelta
+import math
+from datetime import datetime, time, timedelta
 import pytz
 
-# --- CONFIGURATION ---
-# Portfolio: EURUSD, USDJPY, GBPJPY, AUDUSD, EURJPY, GBPUSD
+# ==============================================================================
+# CONFIGURATION & RISK PARAMETERS
+# ==============================================================================
 PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD"]
-PRIMARY_API_KEY = os.environ.get("d93af08b103e43c99034dd6362a239d3")
-BACKUP_API_KEY = os.environ.get("6KNLLPUP7JNEBI88")
+ACCOUNT_BALANCE = 10000.0   
+RISK_PER_TRADE = 0.01       
+MAX_ALLOWED_SPREAD_PIPS = 3.0 # Block trades if spread is > 3 pips
+PRIMARY_API_KEY = os.environ.get("PRIMARY_API_KEY", "YOUR_API_KEY_HERE")
+
 NY_TZ = pytz.timezone("America/New_York")
 
-# ==========================================
-# DATA FETCHING WITH BACKUP API LOGIC
-# ==========================================
-def fetch_data(symbol, interval, outputsize=100):
-    """Tries Twelve Data; falls back to Alpha Vantage if Twelve Data fails."""
-    # 1. Primary: Twelve Data
+# ==============================================================================
+# SPREAD & NEWS UTILITIES (UPGRADED)
+# ==============================================================================
+def get_current_spread(symbol):
+    """Fetches real-time spread to ensure we aren't trading in illiquid gaps."""
     try:
-        url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize={outputsize}&apikey={PRIMARY_API_KEY}"
-        res = requests.get(url, timeout=10).json()
-        if "values" in res:
-            return list(reversed(res["values"]))
-    except Exception as e:
-        print(f"⚠️ Twelve Data failed for {symbol}: {e}")
+        url = f"https://api.twelvedata.com/quotes?symbol={symbol}&apikey={PRIMARY_API_KEY}"
+        res = requests.get(url).json()
+        # TwelveData provides bid/ask in the quote endpoint
+        bid = float(res.get('bid', 0))
+        ask = float(res.get('ask', 0))
+        if bid == 0 or ask == 0: return 999 # Safety block
+        
+        pip_val = 0.01 if "JPY" in symbol else 0.0001
+        spread_pips = (ask - bid) / pip_val
+        return spread_pips
+    except:
+        return 999
 
-    # 2. Backup: Alpha Vantage
+def is_news_safe(symbol):
+    """
+    Checks for high-impact news. 
+    Note: Real-time news APIs often require specialized keys. 
+    This logic filters out pairs if a major event is within a 2-hour window.
+    """
     try:
-        print(f"🔄 Switching to Alpha Vantage for {symbol}...")
-        from_curr, to_curr = symbol[:3], symbol[3:]
-        # Map interval names for Alpha Vantage
-        av_interval = interval if 'min' in interval else '15min'
+        # Using TwelveData Price Alerts/Events or a generic Economic Calendar
+        url = f"https://api.twelvedata.com/economic_calendar?apikey={PRIMARY_API_KEY}"
+        res = requests.get(url).json()
+        events = res.get("events", [])
         
-        url = f"https://www.alphavantage.co/query?function=FX_INTRADAY&from_symbol={from_curr}&to_symbol={to_curr}&interval={av_interval}&apikey={BACKUP_API_KEY}"
-        res = requests.get(url, timeout=10).json()
+        now = datetime.now(pytz.UTC)
+        relevant_currencies = [symbol[:3], symbol[3:]] # e.g. EUR and USD
         
-        time_key = f"Time Series FX ({av_interval})"
-        if time_key in res:
-            formatted = []
-            for ts, val in res[time_key].items():
-                formatted.append({
-                    "datetime": ts, "open": val["1. open"], "high": val["2. high"],
-                    "low": val["3. low"], "close": val["4. close"]
-                })
-            return list(reversed(formatted))
-    except Exception as e:
-        print(f"❌ Backup API also failed for {symbol}: {e}")
-    
-    return []
+        for event in events:
+            # Only care about High Impact news
+            if event.get("importance") == "High":
+                event_currency = event.get("currency")
+                if event_currency in relevant_currencies:
+                    event_time = datetime.fromisoformat(event.get("date").replace("Z", "+00:00"))
+                    # If news is within 2 hours (before or after)
+                    if abs((event_time - now).total_seconds()) < 7200:
+                        return False
+        return True
+    except:
+        return True # Default to True if News API fails to not lock the bot
 
-def ema(prices, period):
-    if not prices: return []
+# ==============================================================================
+# CORE MATH & LOGIC
+# ==============================================================================
+def get_pip_value(pair):
+    return 0.01 if "JPY" in pair else 0.0001
+
+def calculate_position_size(pair, risk_usd, stop_loss_pips):
+    if stop_loss_pips <= 0: return 0
+    pip_value_std_lot = 10.0 if "JPY" not in pair else 9.0 
+    return round(risk_usd / (stop_loss_pips * pip_value_std_lot), 2)
+
+def calculate_ema(prices, period):
+    if len(prices) < period: return [prices[-1]]
     k = 2 / (period + 1)
-    res = [prices[0]]
-    for p in prices[1:]:
-        res.append(p * k + res[-1] * (1-k))
-    return res
+    ema_values = [sum(prices[:period]) / period]
+    for p in prices[period:]:
+        ema_values.append(p * k + ema_values[-1] * (1 - k))
+    return ema_values
 
-# ==========================================
-# STRATEGY 1: DAILY PIN BAR (DAILY CHORE)
-# ==========================================
-def generate_daily_pinbar_signals():
+def is_valid_pinbar(op, cl, hi, lo, bullish=True):
+    rng = hi - lo
+    if rng == 0: return False
+    if bullish:
+        return (max(op, cl) <= lo + (rng * 0.40)) and ((min(op, cl) - lo) > (hi - max(op, cl)) * 2)
+    else:
+        return (min(op, cl) >= hi - (rng * 0.40)) and ((hi - max(op, cl)) > (min(op, cl) - lo) * 2)
+
+# ==============================================================================
+# MAIN SCANNER
+# ==============================================================================
+def fetch_data(symbol, interval, size=100):
+    try:
+        url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize={size}&apikey={PRIMARY_API_KEY}"
+        res = requests.get(url, timeout=15).json()
+        return list(reversed(res["values"])) if "values" in res else []
+    except: return []
+
+def run_trading_bot():
+    now_ny = datetime.now(NY_TZ)
+    is_ny_active = time(8, 0) <= now_ny.time() <= time(16, 0)
     signals = []
+
     for pair in PAIRS:
-        data = fetch_data(pair, "1day", 60)
-        if len(data) < 55: continue
-
-        closes = [float(x["close"]) for x in data]
-        highs = [float(x["high"]) for x in data]
-        lows = [float(x["low"]) for x in data]
-        opens = [float(x["open"]) for x in data]
-
-        e8, e20, e50 = ema(closes, 8), ema(closes, 20), ema(closes, 50)
-        op, cl, hi, lo = opens[-1], closes[-1], highs[-1], lows[-1]
-        candle_range = hi - lo
-        if candle_range == 0: continue
-
-        # Bullish: Open/Close in lower 30% | Bearish: Open/Close in upper 30%[cite: 1]
-        is_bullish_pin = max(op, cl) <= lo + (candle_range * 0.3)
-        is_bearish_pin = min(op, cl) >= hi - (candle_range * 0.3)
-
-        # SELL SIGNAL Rules[cite: 1]
-        if e8[-1] < e20[-1] < e50[-1] and is_bearish_pin and hi >= e8[-1]:
-            entry = lo - 0.0002 # 2 pips below low[cite: 1]
-            sl = hi + 0.0002    # 2 pips above high[cite: 1]
-            tp = entry - (sl - entry) # 1:1 Measured Move[cite: 1]
-            signals.append({"pair": pair, "strategy": "DailyPin", "signal": "SELL", "type": "SELL STOP", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(tp, 5), "status": "ACTIVE"})
-
-        # BUY SIGNAL Rules[cite: 1]
-        elif e8[-1] > e20[-1] > e50[-1] and is_bullish_pin and lo <= e8[-1]:
-            entry = hi + 0.0002 # 2 pips above high[cite: 1]
-            sl = lo - 0.0002    # 2 pips below low[cite: 1]
-            tp = entry + (entry - sl) # 1:1 Measured Move[cite: 1]
-            signals.append({"pair": pair, "strategy": "DailyPin", "signal": "BUY", "type": "BUY STOP", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(tp, 5), "status": "ACTIVE"})
-
-    return signals
-
-# ==========================================
-# STRATEGY 2: 4H RANGE FAKE BREAKOUT
-# ==========================================
-def generate_fake_breakout_signals():
-    signals = []
-    for pair in PAIRS:
-        data_4h = fetch_data(pair, "4h", 10)
-        if not data_4h: continue
-        
-        # Mark high/low of first 4H candle of the day[cite: 2]
-        first_4h = data_4h[-1] 
-        r_high, r_low = float(first_4h['high']), float(first_4h['low'])
-
-        data_5m = fetch_data(pair, "5min", 10)
-        if len(data_5m) < 2: continue
-
-        prev_c = float(data_5m[-2]['close'])
-        curr_c = float(data_5m[-1]['close'])
-
-        # Break above and return -> Sell[cite: 2]
-        if prev_c > r_high and curr_c < r_high:
-            entry = curr_c
-            sl = r_high + 0.0001
-            tp = entry - ((sl - entry) * 2) # 2R Target[cite: 2]
-            signals.append({"pair": pair, "strategy": "FakeBreak", "signal": "SELL", "type": "MARKET", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(tp, 5), "status": "ACTIVE"})
-
-        # Break below and return -> Buy[cite: 2]
-        elif prev_c < r_low and curr_c > r_low:
-            entry = curr_c
-            sl = r_low - 0.0001
-            tp = entry + ((entry - sl) * 2) # 2R Target[cite: 2]
-            signals.append({"pair": pair, "strategy": "FakeBreak", "signal": "BUY", "type": "MARKET", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(tp, 5), "status": "ACTIVE"})
-
-    return signals
-
-# ==========================================
-# TRACKING & MAIN CALL
-# ==========================================
-def update_signal_status(active_signals):
-    updated = []
-    for s in active_signals:
-        data = fetch_data(s['pair'], "1min", 5)
-        if not data: 
-            updated.append(s)
+        # UPGRADE: Check spread first
+        current_spread = get_current_spread(pair)
+        if current_spread > MAX_ALLOWED_SPREAD_PIPS:
+            print(f"Skipping {pair}: Spread too high ({round(current_spread, 1)} pips)")
             continue
-        curr = float(data[-1]['close'])
-        if s['signal'] == "BUY":
-            if curr >= s['tp']: s['status'] = "TP HIT"
-            elif curr <= s['sl']: s['status'] = "SL HIT"
-        else:
-            if curr <= s['tp']: s['status'] = "TP HIT"
-            elif curr >= s['sl']: s['status'] = "SL HIT"
-        updated.append(s)
-    return updated
+            
+        # UPGRADE: Check News Impact
+        if not is_news_safe(pair):
+            print(f"Skipping {pair}: High impact news detected nearby.")
+            continue
 
-def generate_signals():
-    # Combines both strategies into one signal list
-    return generate_daily_pinbar_signals() + generate_fake_breakout_signals()
+        daily = fetch_data(pair, "1day", 55)
+        if not daily: continue
+        
+        closes = [float(x["close"]) for x in daily]
+        last_closed = daily[-2]
+        op, cl, hi, lo = float(last_closed["open"]), float(last_closed["close"]), float(last_closed["high"]), float(last_closed["low"])
+        
+        e8 = calculate_ema(closes[:-1], 8)[-1]
+        e20 = calculate_ema(closes[:-1], 20)[-1]
+        e50 = calculate_ema(closes[:-1], 50)[-1]
+        pip_unit = get_pip_value(pair)
+        
+        is_trending = abs(e20 - e50) > (closes[-2] * 0.0015)
+
+        if is_trending:
+            if e8 > e20 > e50 and lo <= e8 and is_valid_pinbar(op, cl, hi, lo, bullish=True):
+                entry, sl = hi + (2 * pip_unit), lo - (2 * pip_unit)
+                lots = calculate_position_size(pair, ACCOUNT_BALANCE * RISK_PER_TRADE, abs(entry-sl)/pip_unit)
+                signals.append({"pair": pair, "strategy": "DailyChore", "side": "BUY", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry + (entry-sl), 5), "lots": lots})
+            
+            elif e8 < e20 < e50 and hi >= e8 and is_valid_pinbar(op, cl, hi, lo, bullish=False):
+                entry, sl = lo - (2 * pip_unit), hi + (2 * pip_unit)
+                lots = calculate_position_size(pair, ACCOUNT_BALANCE * RISK_PER_TRADE, abs(entry-sl)/pip_unit)
+                signals.append({"pair": pair, "strategy": "DailyChore", "side": "SELL", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry - (sl-entry), 5), "lots": lots})
+        else:
+            if not is_ny_active: continue
+            data_4h, data_5m = fetch_data(pair, "4h", 15), fetch_data(pair, "5min", 5)
+            range_candle = next((c for c in data_4h if c["datetime"].startswith(now_ny.strftime("%Y-%m-%d"))), None)
+            
+            if range_candle and len(data_5m) >= 2:
+                r_hi, r_lo = float(range_candle["high"]), float(range_candle["low"])
+                m5_prev, m5_curr = data_5m[-2], data_5m[-1]
+                
+                if float(m5_prev["close"]) > r_hi and float(m5_curr["close"]) < r_hi:
+                    entry = float(m5_curr["close"])
+                    sl = max(float(m5_prev["high"]), float(m5_curr["high"])) + pip_unit 
+                    lots = calculate_position_size(pair, ACCOUNT_BALANCE * RISK_PER_TRADE, abs(entry-sl)/pip_unit)
+                    signals.append({"pair": pair, "strategy": "FakeBreakout", "side": "SELL", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry - (2*(sl-entry)), 5), "lots": lots})
+                
+                elif float(m5_prev["close"]) < r_lo and float(m5_curr["close"]) > r_lo:
+                    entry = float(m5_curr["close"])
+                    sl = min(float(m5_prev["low"]), float(m5_curr["low"])) - pip_unit
+                    lots = calculate_position_size(pair, ACCOUNT_BALANCE * RISK_PER_TRADE, abs(entry-sl)/pip_unit)
+                    signals.append({"pair": pair, "strategy": "FakeBreakout", "side": "BUY", "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry + (2*(entry-sl)), 5), "lots": lots})
+
+    return signals
+
+if __name__ == "__main__":
+    print(f"Scanning Markets... (NY Time: {datetime.now(NY_TZ).strftime('%H:%M')})")
+    results = run_trading_bot()
+    for s in results: print(s)
