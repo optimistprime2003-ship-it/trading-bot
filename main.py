@@ -21,7 +21,7 @@ app = FastAPI()
 DB_FILE = "db.json"
 
 # --- CONFIG ---
-EXPIRY_MINUTES = 180  # 3 hours expiry for trades
+EXPIRY_MINUTES = 1440  # 3 hours expiry for trades
 
 # ==========================================
 # DATABASE FUNCTIONS
