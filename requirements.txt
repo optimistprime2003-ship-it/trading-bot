@@ -4,3 +4,6 @@ pandas
 numpy
 requests
 pytz
+python-dateutil
+pydantic
+pydantic-core
