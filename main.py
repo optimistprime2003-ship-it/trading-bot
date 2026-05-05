@@ -9,19 +9,20 @@ from fastapi import FastAPI
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO)
 
-# --- DEFENSIVE IMPORT ---
+# --- ALIGNED IMPORT ---
+# We use 'run_trading_bot' to match your engine's logic
 try:
-    from engine import generate_signals, update_signal_status
+    from engine import run_trading_bot
 except ImportError as e:
-    logging.error(f"CRITICAL ERROR: Could not import engine.py. Details: {e}")
-    generate_signals = None
-    update_signal_status = None
+    logging.error(f"CRITICAL ERROR: Could not import engine.py correctly. Details: {e}")
+    run_trading_bot = None
 
 app = FastAPI()
 DB_FILE = "db.json"
 
 # --- CONFIG ---
-EXPIRY_MINUTES = 1440  # 3 hours expiry for trades
+# Daily signals are valid for 24 hours (1440 mins) per strategy rules
+EXPIRY_MINUTES = 1440  
 
 # ==========================================
 # DATABASE FUNCTIONS
@@ -38,7 +39,6 @@ def load_db():
         logging.error(f"DB Read Error: {e}")
         return {"active": [], "history": []}
 
-
 def save_db(data):
     try:
         with open(DB_FILE, "w") as f:
@@ -46,83 +46,68 @@ def save_db(data):
     except Exception as e:
         logging.error(f"Disk Write Error: {e}")
 
-
 # ==========================================
 # ROUTES
 # ==========================================
 
 @app.get("/")
 def home():
-    status = "Online" if generate_signals else "Offline (Engine Error)"
+    status = "Online" if run_trading_bot else "Offline (Import Error)"
     return {"status": "Bot running", "engine_status": status}
-
 
 @app.get("/run")
 def run_engine():
-    if not generate_signals:
-        return {"error": "Engine is not loaded correctly. Check logs."}
+    if not run_trading_bot:
+        return {"error": "Engine function 'run_trading_bot' not found. Check engine.py."}
 
-    logging.info("Engine triggered...")
-
+    logging.info("Professional Scanner Triggered...")
     db = load_db()
     active = db.get("active", [])
     history = db.get("history", [])
 
     # ===============================
-    # GENERATE SIGNALS (SAFE EXECUTION)
+    # GENERATE SIGNALS (run_trading_bot)
     # ===============================
     try:
-        new_signals = generate_signals()
+        # This executes your Daily Chore and 4H Fake Breakout logic
+        new_signals = run_trading_bot() 
     except Exception as e:
-        logging.error(f"ENGINE CRASH: {e}")
-        return {"error": "Engine crashed. Check logs."}
+        logging.error(f"ENGINE CRASH during scan: {e}")
+        return {"error": f"Logic error: {e}"}
 
     # ===============================
     # ADD NEW SIGNALS (NO DUPLICATES)
     # ===============================
     if new_signals:
         for new in new_signals:
+            # Prevent duplicate signals for the same pair/strategy combination
             exists = any(
                 s["pair"] == new["pair"]
                 and s.get("strategy") == new.get("strategy")
-                and s.get("type") == new.get("type")
-                and s.get("entry") == new.get("entry")
+                and s.get("side") == new.get("side")
                 for s in active
             )
 
             if not exists:
                 new["created_at"] = datetime.utcnow().isoformat()
+                new["status"] = "PENDING"
                 active.append(new)
 
     # ===============================
-    # UPDATE SIGNAL STATUS
-    # ===============================
-    if update_signal_status:
-        try:
-            updated = update_signal_status(active)
-        except Exception as e:
-            logging.error(f"UPDATE ERROR: {e}")
-            updated = active
-    else:
-        updated = active
-
-    # ===============================
-    # EXPIRY CHECK
+    # CLEANUP & EXPIRY
     # ===============================
     now = datetime.utcnow()
     final_active = []
 
-    for s in updated:
+    for s in active:
         try:
             created = datetime.fromisoformat(s["created_at"])
         except:
             created = now
 
-        # Expire old trades
+        # Expire signals after 24 hours per Strategy Rules
         if now - created > timedelta(minutes=EXPIRY_MINUTES):
             s["status"] = "EXPIRED"
-
-        if s.get("status") in ["TP HIT", "SL HIT", "EXPIRED"]:
             history.append(s)
         else:
             final_active.append(s)
@@ -130,68 +115,25 @@ def run_engine():
     db["active"], db["history"] = final_active, history
     save_db(db)
 
-    logging.info(f"Run complete. Active: {len(final_active)} | History: {len(history)}")
+    logging.info(f"Scan complete. Active Signals: {len(final_active)}")
 
     return {
-        "active": db["active"],
-        "history_preview": db["history"][-5:]
+        "active_signals": db["active"],
+        "history_count": len(db["history"])
     }
-
 
 @app.get("/signals")
 def get_signals():
     return load_db()["active"]
 
-
-@app.get("/history")
-def get_history():
-    return load_db()["history"][-50:]
-
-
-@app.get("/stats")
-def get_stats():
-    db = load_db()
-    history = db["history"]
-
-    wins = sum(1 for s in history if s.get("status") == "TP HIT")
-    losses = sum(1 for s in history if s.get("status") == "SL HIT")
-    total = wins + losses
-    win_rate = (wins / total * 100) if total > 0 else 0
-
-    strategy_stats = {}
-
-    for s in history:
-        strat = s.get("strategy", "Unknown")
-
-        if strat not in strategy_stats:
-            strategy_stats[strat] = {"wins": 0, "losses": 0}
-
-        if s.get("status") == "TP HIT":
-            strategy_stats[strat]["wins"] += 1
-        elif s.get("status") == "SL HIT":
-            strategy_stats[strat]["losses"] += 1
-
-    return {
-        "total_trades": total,
-        "wins": wins,
-        "losses": losses,
-        "win_rate": round(win_rate, 2),
-        "by_strategy": strategy_stats
-    }
-
-
 @app.get("/health")
 def health():
     db = load_db()
     return {
-        "engine_loaded": generate_signals is not None,
-        "active_signals": len(db.get("active", [])),
+        "engine_ready": run_trading_bot is not None,
+        "active_count": len(db.get("active", [])),
         "history_count": len(db.get("history", []))
     }
 
-
-# ==========================================
-# RUN SERVER (LOCAL ONLY)
-# ==========================================
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=10000)
