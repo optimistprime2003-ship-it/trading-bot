@@ -3,38 +3,53 @@ from datetime import datetime, timedelta
 import pytz
 
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
-API_KEY = "d93af08b103e43c99034dd6362a239d3 " # Ensure your Twelve Data API key is here
+API_KEY = "d93af08b103e43c99034dd6362a239d3"  # Replace with your actual Twelve Data API Key
 NY_TZ = pytz.timezone("America/New_York")
 
 # ===============================
-# NEWS FILTER LOGIC
+# MARKET MECHANIC: NEWS GUARD
 # ===============================
 def is_market_volatile():
     """
-    Checks for high-impact USD news. 
-    Prevents signals 30 mins before/after events.
+    Blocks signals 30 mins before/after High Impact USD News.
     """
     try:
-        # Using Twelve Data's economic calendar endpoint
         url = f"https://api.twelvedata.com/economic_calendar?apikey={API_KEY}"
         res = requests.get(url).json()
         
         if "status" in res and res["status"] == "error":
-            return False # Fallback to allow trading if API fails
+            return False
 
         now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
         
         for event in res.get("notifications", []):
-            # Focus on High Impact USD news (NFP, CPI, FED)
+            # Focus on High Impact US news (NFP, CPI, FED)
             if event.get("country") == "US" and event.get("importance") == "High":
                 event_time = datetime.fromtimestamp(event["time"]).replace(tzinfo=pytz.utc)
                 
-                # Check 30 minute window
                 if event_time - timedelta(minutes=30) <= now_utc <= event_time + timedelta(minutes=30):
                     return True
         return False
     except:
         return False
+
+# ===============================
+# MARKET MECHANIC: VOLUME FILTER
+# ===============================
+def has_volume_confirmation(data_list):
+    """
+    Checks if the current candle's volume is higher than the 10-period average.
+    This ensures 'Big Money' is behind the move.
+    """
+    if len(data_list) < 11:
+        return True # Not enough data, allow trade
+    
+    volumes = [float(x.get("volume", 0)) for x in data_list]
+    current_vol = volumes[-1]
+    avg_vol = sum(volumes[-11:-1]) / 10
+    
+    # Only allow trade if current activity is at least 10% above average
+    return current_vol > (avg_vol * 1.1)
 
 # ===============================
 # CORE UTILITIES
@@ -73,8 +88,8 @@ def is_same_ny_day(dt1, dt2):
 # SIGNAL GENERATION
 # ===============================
 def generate_signals():
+    # Mechanic 1: Check News
     if is_market_volatile():
-        print("High impact news detected. Skipping signal generation.")
         return []
     
     return generate_pinbar_signals() + generate_fake_breakout_signals()
@@ -85,6 +100,9 @@ def generate_pinbar_signals():
         data = fetch_data(pair, "15min")
         if len(data) < 60: continue
         
+        # Mechanic 2: Check Volume Confirmation
+        if not has_volume_confirmation(data): continue
+
         closes = [float(x["close"]) for x in data]
         highs = [float(x["high"]) for x in data]
         lows = [float(x["low"]) for x in data]
@@ -97,11 +115,10 @@ def generate_pinbar_signals():
         body, candle = abs(close_p - open_p), high_p - low_p
         if candle == 0: continue
 
-        # --- FIXED INVERSE LOGIC ---
-        # Bullish Pin: Rejection of LOWS (Long lower wick). Body is in the TOP 30%.
+        # --- CORRECTED INVERSE LOGIC ---
+        # Bullish: Long lower wick (rejection of lows)
         bullish_pin = min(open_p, close_p) > high_p - (candle * 0.3)
-        
-        # Bearish Pin: Rejection of HIGHS (Long upper wick). Body is in the BOTTOM 30%.
+        # Bearish: Long upper wick (rejection of highs)
         bearish_pin = max(open_p, close_p) < low_p + (candle * 0.3)
 
         if ema8[i] > ema20[i] > ema50[i] and bullish_pin:
@@ -176,5 +193,4 @@ def generate_fake_breakout_signals():
     return signals
 
 def update_signal_status(active_signals):
-    # This keeps signals active. You can add logic here to check if price hits TP/SL
     return active_signals
