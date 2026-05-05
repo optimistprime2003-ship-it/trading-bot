@@ -1,52 +1,73 @@
-from fastapi import FastAPI
-from engine import generate_signals, update_signal_status
-import json
 import os
+import json
+import uvicorn
+from fastapi import FastAPI
+
+# --- DEFENSIVE IMPORT ---
+# This prevents the whole app from crashing if engine.py has a syntax error
+try:
+    from engine import generate_signals, update_signal_status
+except ImportError as e:
+    print(f"CRITICAL ERROR: Could not import engine.py. Details: {e}")
+    generate_signals = None
+    update_signal_status = None
 
 app = FastAPI()
 DB_FILE = "db.json"
 
 def load_db():
     if not os.path.exists(DB_FILE):
+        initial_data = {"active": [], "history": []}
+        save_db(initial_data)
+        return initial_data
+    try:
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    except:
         return {"active": [], "history": []}
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
 
 def save_db(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Disk Write Error: {e}")
 
 @app.get("/")
 def home():
-    return {"status": "Bot running"}
+    status = "Online" if generate_signals else "Offline (Engine Error)"
+    return {"status": "Bot running", "engine_status": status}
 
 @app.get("/run")
 def run_engine():
+    if not generate_signals:
+        return {"error": "Engine is not loaded correctly. Check Render logs."}
+        
     db = load_db()
-    active = db["active"]
-    history = db["history"]
+    active = db.get("active", [])
+    history = db.get("history", [])
 
-    # This function now internally checks for News before returning signals
+    # The updated engine uses Twelve Data + Alpha Vantage backup
     new_signals = generate_signals()
 
-    for new in new_signals:
-        # Avoid duplicates based on Pair, Strategy, and Type
-        if not any(s["pair"] == new["pair"] and s["strategy"] == new["strategy"] and s["type"] == new["type"] for s in active):
-            active.append(new)
+    if new_signals:
+        for new in new_signals:
+            if not any(s["pair"] == new["pair"] and s["strategy"] == new.get("strategy") and s["type"] == new.get("type") for s in active):
+                active.append(new)
 
-    updated = update_signal_status(active)
-    still_active = []
+    if update_signal_status:
+        updated = update_signal_status(active)
+        still_active = []
+        for s in updated:
+            if s.get("status") in ["TP HIT", "SL HIT", "EXPIRED"]:
+                history.append(s)
+            else:
+                still_active.append(s)
+        
+        db["active"], db["history"] = still_active, history
+        save_db(db)
 
-    for s in updated:
-        if s["status"] in ["TP HIT", "SL HIT", "EXPIRED"]:
-            history.append(s)
-        else:
-            still_active.append(s)
-
-    db["active"], db["history"] = still_active, history
-    save_db(db)
-
-    return {"active": still_active, "history": history[-20:]}
+    return {"active": db["active"], "history_preview": db["history"][-5:]}
 
 @app.get("/signals")
 def get_signals():
@@ -60,8 +81,8 @@ def get_history():
 def get_stats():
     db = load_db()
     history = db["history"]
-    wins = sum(1 for s in history if s["status"] == "TP HIT")
-    losses = sum(1 for s in history if s["status"] == "SL HIT")
+    wins = sum(1 for s in history if s.get("status") == "TP HIT")
+    losses = sum(1 for s in history if s.get("status") == "SL HIT")
     total = wins + losses
     win_rate = (wins / total * 100) if total > 0 else 0
 
@@ -70,10 +91,10 @@ def get_stats():
         strat = s.get("strategy", "Unknown")
         if strat not in strategy_stats:
             strategy_stats[strat] = {"wins": 0, "losses": 0, "total": 0}
-        if s["status"] == "TP HIT":
+        if s.get("status") == "TP HIT":
             strategy_stats[strat]["wins"] += 1
             strategy_stats[strat]["total"] += 1
-        elif s["status"] == "SL HIT":
+        elif s.get("status") == "SL HIT":
             strategy_stats[strat]["losses"] += 1
             strategy_stats[strat]["total"] += 1
 
@@ -85,3 +106,9 @@ def get_stats():
         "overall": {"total_trades": total, "wins": wins, "losses": losses, "win_rate": round(win_rate, 2)},
         "by_strategy": strategy_stats
     }
+
+# --- RENDER PORT BINDING ---
+if __name__ == "__main__":
+    # Render assigns a port dynamically via environment variables
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
