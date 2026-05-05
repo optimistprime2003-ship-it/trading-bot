@@ -8,7 +8,7 @@ import pytz
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 # These pull directly from the Render Environment Variables we set up
 PRIMARY_API_KEY = os.environ.get("d93af08b103e43c99034dd6362a239d3")
-BACKUP_API_KEY = os.environ.get("BACKUP_API_KEY")
+BACKUP_API_KEY = os.environ.get("6KNLLPUP7JNEBI88")
 NY_TZ = pytz.timezone("America/New_York")
 
 # ==========================================
