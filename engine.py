@@ -5,7 +5,7 @@ import pytz
 # --- CONFIGURATION ---
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
 PRIMARY_API_KEY = "d93af08b103e43c99034dd6362a239d3"  # Replace with your primary key
-BACKUP_API_KEY = "YOUR_ALPHA_VANTAGE_KEY" # Replace with your Alpha Vantage key
+BACKUP_API_KEY = "6KNLLPUP7JNEBI88" # Replace with your Alpha Vantage key
 NY_TZ = pytz.timezone("America/New_York")
 
 # ==========================================
