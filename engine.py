@@ -11,7 +11,7 @@ PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD"]
 ACCOUNT_BALANCE = 10000.0   
 RISK_PER_TRADE = 0.01       
 MAX_ALLOWED_SPREAD_PIPS = 3.0 # Block trades if spread is > 3 pips
-PRIMARY_API_KEY = os.environ.get("d93af08b103e43c99034dd6362a239d3", "YOUR_API_KEY_HERE")
+PRIMARY_API_KEY = os.environ.get("d93af08b103e43c99034dd6362a239d3", "6KNLLPUP7JNEBI88")
 
 NY_TZ = pytz.timezone("America/New_York")
 
