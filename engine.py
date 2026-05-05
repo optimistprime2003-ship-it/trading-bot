@@ -1,11 +1,14 @@
 import requests
+import json
+import os
 from datetime import datetime, timedelta
 import pytz
 
 # --- CONFIGURATION ---
 PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]
-PRIMARY_API_KEY = "d93af08b103e43c99034dd6362a239d3"  # Replace with your primary key
-BACKUP_API_KEY = "6KNLLPUP7JNEBI88" # Replace with your Alpha Vantage key
+# These pull directly from the Render Environment Variables we set up
+PRIMARY_API_KEY = os.environ.get("PRIMARY_API_KEY")
+BACKUP_API_KEY = os.environ.get("BACKUP_API_KEY")
 NY_TZ = pytz.timezone("America/New_York")
 
 # ==========================================
@@ -28,6 +31,7 @@ def fetch_forex_data(symbol, interval):
     try:
         print(f"🔄 Switching to Alpha Vantage Backup for {symbol}...")
         from_cur, to_cur = symbol[:3], symbol[3:]
+        # Mapping 15min/5min to Alpha Vantage format
         av_interval = interval if 'min' in interval else '15min'
         
         url = f"https://www.alphavantage.co/query?function=FX_INTRADAY&from_symbol={from_cur}&to_symbol={to_cur}&interval={av_interval}&apikey={BACKUP_API_KEY}"
@@ -58,7 +62,7 @@ def is_market_volatile():
     """Blocks signals 30 mins before/after High Impact US News."""
     try:
         url = f"https://api.twelvedata.com/economic_calendar?apikey={PRIMARY_API_KEY}"
-        res = requests.get(url).json()
+        res = requests.get(url, timeout=5).json()
         now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
         for event in res.get("notifications", []):
             if event.get("country") == "US" and event.get("importance") == "High":
@@ -78,7 +82,7 @@ def has_volume_confirmation(data_list):
     return current_vol > (avg_vol * 1.1)
 
 # ==========================================
-# STRATEGY LOGIC
+# STRATEGY TOOLS & TRACKING
 # ==========================================
 def ema(prices, period):
     k = 2 / (period + 1)
@@ -88,13 +92,45 @@ def ema(prices, period):
         else: res.append(p * k + res[i-1] * (1-k))
     return res
 
+def update_signal_status(active_signals):
+    """
+    Checks the current market price for each active trade to see if it hit TP or SL.
+    This was the missing function causing the crash.
+    """
+    updated_list = []
+    for signal in active_signals:
+        try:
+            # Check price on a 1-minute basis for precision
+            data = fetch_forex_data(signal['pair'], "1min")
+            if not data:
+                updated_list.append(signal)
+                continue
+                
+            current_price = float(data[-1]['close'])
+            tp = float(signal['tp'])
+            sl = float(signal['sl'])
+            
+            if signal['signal'] == "BUY":
+                if current_price >= tp: signal['status'] = "TP HIT"
+                elif current_price <= sl: signal['status'] = "SL HIT"
+            elif signal['signal'] == "SELL":
+                if current_price <= tp: signal['status'] = "TP HIT"
+                elif current_price >= sl: signal['status'] = "SL HIT"
+                    
+        except Exception as e:
+            print(f"Error updating {signal['pair']}: {e}")
+            
+        updated_list.append(signal)
+    return updated_list
+
+# ==========================================
+# SIGNAL GENERATION
+# ==========================================
 def generate_pinbar_signals():
     signals = []
     for pair in PAIRS:
         data = fetch_forex_data(pair, "15min")
         if not data or len(data) < 60: continue
-        
-        # Apply Volume Filter
         if not has_volume_confirmation(data): continue
 
         closes = [float(x["close"]) for x in data]
@@ -102,101 +138,40 @@ def generate_pinbar_signals():
         lows = [float(x["low"]) for x in data]
         opens = [float(x["open"]) for x in data]
 
-        ema8 = ema(closes, 8)
-        ema20 = ema(closes, 20)
-        ema50 = ema(closes, 50)
+        ema8, ema20, ema50 = ema(closes, 8), ema(closes, 20), ema(closes, 50)
         
         i = -1
         op, cl, hi, lo = opens[i], closes[i], highs[i], lows[i]
         candle_range = hi - lo
         if candle_range == 0: continue
 
-        # --- UPDATED INVERSE PIN BAR LOGIC ---
-        # Bullish: Long lower wick (rejection of lows)
+        # Corrected Logic: Bullish = long lower wick, Bearish = long upper wick
         bullish_pin = min(op, cl) > hi - (candle_range * 0.3)
-        # Bearish: Long upper wick (rejection of highs)
         bearish_pin = max(op, cl) < lo + (candle_range * 0.3)
 
-        now = datetime.utcnow()
-        # Uptrend + Bullish Rejection
         if ema8[i] > ema20[i] > ema50[i] and bullish_pin:
-            entry = hi + 0.0002
-            sl = lo - 0.0002
+            entry = round(hi + 0.0002, 5)
+            sl = round(lo - 0.0002, 5)
             signals.append({
                 "pair": pair, "strategy": "PinBar", "signal": "BUY", "type": "BUY STOP",
-                "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry + (entry - sl), 5),
-                "time": str(now)
+                "entry": entry, "sl": sl, "tp": round(entry + (entry - sl), 5),
+                "status": "ACTIVE", "time": str(datetime.utcnow())
             })
-        # Downtrend + Bearish Rejection
         elif ema8[i] < ema20[i] < ema50[i] and bearish_pin:
-            entry = lo - 0.0002
-            sl = hi + 0.0002
+            entry = round(lo - 0.0002, 5)
+            sl = round(hi + 0.0002, 5)
             signals.append({
                 "pair": pair, "strategy": "PinBar", "signal": "SELL", "type": "SELL STOP",
-                "entry": round(entry, 5), "sl": round(sl, 5), "tp": round(entry - (sl - entry), 5),
-                "time": str(now)
+                "entry": entry, "sl": sl, "tp": round(entry - (sl - entry), 5),
+                "status": "ACTIVE", "time": str(datetime.utcnow())
             })
     return signals
 
-def generate_fake_breakout_signals():
-    # Placeholder for the 4H/5min Fake Breakout logic 
-    # Use the same fetch_forex_data(pair, "4h") and fetch_forex_data(pair, "5min")
-    return []
-
-# ==========================================
-# MAIN EXECUTION
-# ==========================================
 def generate_signals():
-    # Global Killswitch: News Guard
+    """Main call from main.py"""
     if is_market_volatile():
-        print("🛑 Trade Blocked: High Impact News Detected.")
+        print("🛑 Trade Blocked: News Detected.")
         return []
     
-    all_signals = generate_pinbar_signals() + generate_fake_breakout_signals()
-    return all_signals
-    def update_signal_status(active_signals):
-    """
-    This function checks the current market price for each active trade 
-    to see if it hit TP or SL.
-    """
-    import requests
-    updated_list = []
-    
-    for signal in active_signals:
-        # Fetch current price for the pair
-        try:
-            # Re-using your fetch logic or a simple current price check
-            data = fetch_forex_data(signal['pair'], "1min")
-            if not data:
-                updated_list.append(signal)
-                continue
-                
-            current_price = float(data[-1]['close'])
-            entry = float(signal['entry'])
-            tp = float(signal['tp'])
-            sl = float(signal['sl'])
-            
-            # Check for BUY signals
-            if signal['signal'] == "BUY":
-                if current_price >= tp:
-                    signal['status'] = "TP HIT"
-                elif current_price <= sl:
-                    signal['status'] = "SL HIT"
-                else:
-                    signal['status'] = "ACTIVE"
-                    
-            # Check for SELL signals
-            elif signal['signal'] == "SELL":
-                if current_price <= tp:
-                    signal['status'] = "TP HIT"
-                elif current_price >= sl:
-                    signal['status'] = "SL HIT"
-                else:
-                    signal['status'] = "ACTIVE"
-                    
-        except Exception as e:
-            print(f"Error updating {signal['pair']}: {e}")
-            
-        updated_list.append(signal)
-        
-    return updated_list
+    # We will expand Fake Breakout once this is stable
+    return generate_pinbar_signals()
