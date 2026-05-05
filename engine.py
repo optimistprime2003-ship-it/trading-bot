@@ -154,3 +154,49 @@ def generate_signals():
     
     all_signals = generate_pinbar_signals() + generate_fake_breakout_signals()
     return all_signals
+    def update_signal_status(active_signals):
+    """
+    This function checks the current market price for each active trade 
+    to see if it hit TP or SL.
+    """
+    import requests
+    updated_list = []
+    
+    for signal in active_signals:
+        # Fetch current price for the pair
+        try:
+            # Re-using your fetch logic or a simple current price check
+            data = fetch_forex_data(signal['pair'], "1min")
+            if not data:
+                updated_list.append(signal)
+                continue
+                
+            current_price = float(data[-1]['close'])
+            entry = float(signal['entry'])
+            tp = float(signal['tp'])
+            sl = float(signal['sl'])
+            
+            # Check for BUY signals
+            if signal['signal'] == "BUY":
+                if current_price >= tp:
+                    signal['status'] = "TP HIT"
+                elif current_price <= sl:
+                    signal['status'] = "SL HIT"
+                else:
+                    signal['status'] = "ACTIVE"
+                    
+            # Check for SELL signals
+            elif signal['signal'] == "SELL":
+                if current_price <= tp:
+                    signal['status'] = "TP HIT"
+                elif current_price >= sl:
+                    signal['status'] = "SL HIT"
+                else:
+                    signal['status'] = "ACTIVE"
+                    
+        except Exception as e:
+            print(f"Error updating {signal['pair']}: {e}")
+            
+        updated_list.append(signal)
+        
+    return updated_list
