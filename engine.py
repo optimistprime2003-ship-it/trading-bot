@@ -6,7 +6,7 @@ import pytz
 # --- CONFIGURATION ---
 # Portfolio: EURUSD, USDJPY, GBPJPY, AUDUSD, EURJPY, GBPUSD
 PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD"]
-PRIMARY_API_KEY = os.environ.get("PRIMARY_API_KEY")
+PRIMARY_API_KEY = os.environ.get("d93af08b103e43c99034dd6362a239d3")
 BACKUP_API_KEY = os.environ.get("BACKUP_API_KEY")
 NY_TZ = pytz.timezone("America/New_York")
 
