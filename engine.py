@@ -7,7 +7,7 @@ import pytz
 # ==============================================================================
 # CONFIGURATION & RISK PARAMETERS
 # ==============================================================================
-PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD"]
+PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD","BTCUSD"]
 ACCOUNT_BALANCE = 10000.0   
 RISK_PER_TRADE = 0.01       
 MAX_ALLOWED_SPREAD_PIPS = 3.0 # Block trades if spread is > 3 pips
