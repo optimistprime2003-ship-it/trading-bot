@@ -13,7 +13,7 @@ RISK_PER_TRADE = 0.01
 MAX_ALLOWED_SPREAD_PIPS = 3.0 
 
 API_KEYS = [
-    os.environ.get("KEY_ONE", "Your_First_Key"),
+    os.environ.get("KEY_ONE", "d93af08b103e43c99034dd6362a239d3"),
     os.environ.get("KEY_TWO", "Your_Second_Key")
 ]
 CURRENT_KEY_INDEX = 0
