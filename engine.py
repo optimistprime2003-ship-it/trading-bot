@@ -14,7 +14,7 @@ MAX_ALLOWED_SPREAD_PIPS = 3.0
 
 API_KEYS = [
     os.environ.get("KEY_ONE", "d93af08b103e43c99034dd6362a239d3"),
-    os.environ.get("KEY_TWO", "Your_Second_Key")
+    os.environ.get("KEY_TWO", "738fd3d524944eadba4f533fe8832525")
 ]
 CURRENT_KEY_INDEX = 0
 NY_TZ = pytz.timezone("America/New_York")
