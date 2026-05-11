@@ -1,205 +1,690 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
   <title>Trading Dashboard</title>
 
   <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+
       margin: 0;
-      font-family: Arial;
+
+      font-family: Arial, sans-serif;
+
       background: #0f172a;
+
       color: white;
     }
 
     header {
+
       text-align: center;
-      padding: 15px;
+
+      padding: 18px;
+
       background: #020617;
-      font-size: 20px;
+
+      font-size: 22px;
+
       font-weight: bold;
+
+      border-bottom: 1px solid #1e293b;
     }
 
     .tabs {
+
       display: flex;
+
       justify-content: space-around;
+
       background: #020617;
+
+      position: sticky;
+
+      top: 0;
+
+      z-index: 999;
     }
 
     .tab {
-      padding: 12px;
+
+      padding: 14px;
+
       cursor: pointer;
+
       flex: 1;
+
       text-align: center;
+
+      transition: 0.2s;
+    }
+
+    .tab:hover {
+      background: #1e293b;
     }
 
     .active-tab {
+
       background: #1e293b;
+
       font-weight: bold;
     }
 
     .container {
-      padding: 10px;
+
+      padding: 12px;
     }
 
     .card {
+
       background: #1e293b;
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 10px;
-      animation: fadeIn 0.4s ease;
+
+      padding: 14px;
+
+      margin-bottom: 12px;
+
+      border-radius: 12px;
+
+      animation: fadeIn 0.35s ease;
+
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
     }
 
-    .buy { border-left: 5px solid #22c55e; }
-    .sell { border-left: 5px solid #ef4444; }
+    .buy {
+      border-left: 5px solid #22c55e;
+    }
+
+    .sell {
+      border-left: 5px solid #ef4444;
+    }
 
     .strategy {
-      font-size: 12px;
-      color: #38bdf8;
-    }
 
-    .price {
-      font-size: 14px;
+      font-size: 13px;
+
+      color: #38bdf8;
+
       margin-top: 5px;
     }
 
+    .price {
+
+      font-size: 14px;
+
+      margin-top: 6px;
+    }
+
     .stats-box {
+
       background: #1e293b;
-      padding: 10px;
-      border-radius: 10px;
-      margin-bottom: 10px;
+
+      padding: 14px;
+
+      border-radius: 12px;
+
+      margin-bottom: 12px;
+
+      line-height: 1.8;
+    }
+
+    .status-pill {
+
+      display: inline-block;
+
+      padding: 4px 8px;
+
+      border-radius: 8px;
+
+      font-size: 12px;
+
+      margin-top: 8px;
+
+      background: #334155;
+    }
+
+    .top-bar {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      margin-bottom: 14px;
+    }
+
+    .live-dot {
+
+      width: 10px;
+
+      height: 10px;
+
+      background: #22c55e;
+
+      border-radius: 50%;
+
+      display: inline-block;
+
+      margin-right: 5px;
+
+      animation: pulse 1s infinite;
+    }
+
+    .empty {
+
+      text-align: center;
+
+      margin-top: 40px;
+
+      opacity: 0.7;
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
+
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
+    @keyframes pulse {
+
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .toast {
+
+      position: fixed;
+
+      bottom: 20px;
+
+      right: 20px;
+
+      background: #020617;
+
+      color: white;
+
+      padding: 14px;
+
+      border-radius: 10px;
+
+      z-index: 9999;
+
+      box-shadow: 0 0 15px rgba(0,0,0,0.4);
+
+      animation: fadeIn 0.3s ease;
+    }
+
   </style>
+
 </head>
 
 <body>
 
-<header>📊 Trading Dashboard</header>
+<header>
+  📊 Trading Dashboard
+</header>
 
 <div class="tabs">
-  <div class="tab active-tab" onclick="switchTab('signals')">Signals</div>
-  <div class="tab" onclick="switchTab('history')">History</div>
-  <div class="tab" onclick="switchTab('stats')">Stats</div>
+
+  <div
+    class="tab active-tab"
+    onclick="switchTab(event, 'signals')"
+  >
+    Signals
+  </div>
+
+  <div
+    class="tab"
+    onclick="switchTab(event, 'history')"
+  >
+    History
+  </div>
+
+  <div
+    class="tab"
+    onclick="switchTab(event, 'stats')"
+  >
+    Stats
+  </div>
+
 </div>
 
-<div class="container" id="content"></div>
+<div class="container" id="content">
 
-<audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+  <div class="empty">
+    Loading...
+  </div>
+
+</div>
+
+<audio
+  id="alertSound"
+  src="https://www.soundjay.com/buttons/sounds/button-3.mp3"
+></audio>
 
 <script>
-const API = "https://trading-signal-bot-7bb3.onrender.com";
 
-let lastSignalCount = 0;
+  // =========================================
+  // CONFIG
+  // =========================================
+  const API =
+    "https://trading-signal-bot-7bb3.onrender.com";
 
-function switchTab(tab) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active-tab"));
-  event.target.classList.add("active-tab");
+  const WS_URL =
+    "wss://trading-signal-bot-7bb3.onrender.com/ws/signals";
 
-  if (tab === "signals") loadSignals();
-  if (tab === "history") loadHistory();
-  if (tab === "stats") loadStats();
-}
+  let socket = null;
 
-// ================= SIGNALS =================
-async function loadSignals() {
-  const res = await fetch(API + "/signals");
-  const data = await res.json();
+  let lastSignalCount = 0;
 
-  let html = "";
+  // =========================================
+  // SWITCH TAB
+  // =========================================
+  function switchTab(event, tab) {
 
-  if (data.length > lastSignalCount) {
-    document.getElementById("alertSound").play();
+    document
+      .querySelectorAll(".tab")
+      .forEach(t => t.classList.remove("active-tab"));
+
+    event.target.classList.add("active-tab");
+
+    if (tab === "signals") loadSignals();
+
+    if (tab === "history") loadHistory();
+
+    if (tab === "stats") loadStats();
   }
 
-  lastSignalCount = data.length;
+  // =========================================
+  // WEBSOCKET
+  // =========================================
+  function connectWebSocket() {
 
-  data.forEach(s => {
-    html += `
-      <div class="card ${s.signal === 'BUY' ? 'buy' : 'sell'}">
-        <div><b>${s.signal} ${s.pair}</b></div>
-        <div class="strategy">${s.strategy}</div>
-        <div class="price">Entry: ${s.entry}</div>
-        <div class="price">SL: ${s.sl}</div>
-        <div class="price">TP: ${s.tp}</div>
-        <div class="price">Status: ${s.status}</div>
-      </div>
-    `;
-  });
+    socket = new WebSocket(WS_URL);
 
-  document.getElementById("content").innerHTML = html || "No signals yet";
-}
+    socket.onopen = () => {
 
-// ================= HISTORY =================
-async function loadHistory() {
-  const res = await fetch(API + "/history");
-  const data = await res.json();
+      console.log("WebSocket Connected");
+    };
 
-  let html = "";
+    socket.onmessage = (event) => {
 
-  data.slice().reverse().forEach(s => {
-    html += `
-      <div class="card">
-        <div><b>${s.signal} ${s.pair}</b></div>
-        <div class="strategy">${s.strategy}</div>
-        <div>Status: ${s.status}</div>
-      </div>
-    `;
-  });
+      const msg = JSON.parse(event.data);
 
-  document.getElementById("content").innerHTML = html || "No history yet";
-}
+      console.log("Realtime:", msg);
 
-// ================= STATS =================
-async function loadStats() {
-  const res = await fetch(API + "/stats");
-  const data = await res.json();
+      document
+        .getElementById("alertSound")
+        .play();
 
-  let html = `
-    <div class="stats-box">
-      <b>Overall</b><br>
-      Trades: ${data.overall.total_trades}<br>
-      Wins: ${data.overall.wins}<br>
-      Losses: ${data.overall.losses}<br>
-      Win Rate: ${data.overall.win_rate}%
-    </div>
-  `;
+      if (msg.type === "NEW_SIGNAL") {
 
-  for (let strat in data.by_strategy) {
-    let s = data.by_strategy[strat];
+        const s = msg.data;
 
-    html += `
-      <div class="stats-box">
-        <b>${strat}</b><br>
-        Trades: ${s.total}<br>
-        Wins: ${s.wins}<br>
-        Losses: ${s.losses}<br>
-        Win Rate: ${s.win_rate}%
-      </div>
-    `;
+        showToast(
+          `${s.side} ${s.pair} | ${s.strategy}`
+        );
+      }
+
+      loadSignals();
+    };
+
+    socket.onclose = () => {
+
+      console.log("WebSocket Disconnected");
+
+      setTimeout(() => {
+        connectWebSocket();
+      }, 3000);
+    };
+
+    socket.onerror = (err) => {
+
+      console.log("WebSocket Error", err);
+    };
   }
 
-  document.getElementById("content").innerHTML = html;
-}
+  // =========================================
+  // TOAST ALERT
+  // =========================================
+  function showToast(message) {
 
-// ================= AUTO REFRESH =================
-setInterval(() => {
-  let active = document.querySelector(".active-tab").innerText;
+    const toast = document.createElement("div");
 
-  if (active === "Signals") loadSignals();
-  if (active === "History") loadHistory();
-  if (active === "Stats") loadStats();
-}, 10000);
+    toast.className = "toast";
 
-// Load default
-loadSignals();
+    toast.innerText = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.remove();
+    }, 4000);
+  }
+
+  // =========================================
+  // SIGNALS
+  // =========================================
+  async function loadSignals() {
+
+    try {
+
+      const res = await fetch(API + "/signals");
+
+      const data = await res.json();
+
+      let html = `
+        <div class="top-bar">
+
+          <div>
+            <span class="live-dot"></span>
+            Live Signals
+          </div>
+
+          <div>
+            ${data.length} Active
+          </div>
+
+        </div>
+      `;
+
+      if (data.length > lastSignalCount) {
+
+        document
+          .getElementById("alertSound")
+          .play();
+      }
+
+      lastSignalCount = data.length;
+
+      if (!data.length) {
+
+        html += `
+          <div class="empty">
+            No active signals
+          </div>
+        `;
+      }
+
+      data.forEach(s => {
+
+        html += `
+          <div class="card ${s.side === 'BUY' ? 'buy' : 'sell'}">
+
+            <div>
+              <b>${s.side} ${s.pair}</b>
+            </div>
+
+            <div class="strategy">
+              ${s.strategy}
+            </div>
+
+            <div class="price">
+              Entry: ${s.entry}
+            </div>
+
+            <div class="price">
+              Stop Loss: ${s.sl}
+            </div>
+
+            <div class="price">
+              Take Profit: ${s.tp}
+            </div>
+
+            <div class="price">
+              Lots: ${s.lots}
+            </div>
+
+            <div class="status-pill">
+              ${s.status}
+            </div>
+
+          </div>
+        `;
+      });
+
+      document.getElementById("content").innerHTML = html;
+
+    } catch {
+
+      document.getElementById("content").innerHTML = `
+        <div class="empty">
+          Failed to load signals
+        </div>
+      `;
+    }
+  }
+
+  // =========================================
+  // HISTORY
+  // =========================================
+  async function loadHistory() {
+
+    try {
+
+      const res = await fetch(API + "/history");
+
+      const data = await res.json();
+
+      let html = `
+        <div class="top-bar">
+
+          <div>
+            Signal History
+          </div>
+
+          <div>
+            ${data.length} Closed
+          </div>
+
+        </div>
+      `;
+
+      if (!data.length) {
+
+        html += `
+          <div class="empty">
+            No history available
+          </div>
+        `;
+      }
+
+      data
+        .slice()
+        .reverse()
+        .forEach(s => {
+
+          html += `
+            <div class="card ${s.side === 'BUY' ? 'buy' : 'sell'}">
+
+              <div>
+                <b>${s.side} ${s.pair}</b>
+              </div>
+
+              <div class="strategy">
+                ${s.strategy}
+              </div>
+
+              <div class="price">
+                Entry: ${s.entry}
+              </div>
+
+              <div class="price">
+                TP: ${s.tp}
+              </div>
+
+              <div class="price">
+                SL: ${s.sl}
+              </div>
+
+              <div class="status-pill">
+                ${s.status}
+              </div>
+
+            </div>
+          `;
+        });
+
+      document.getElementById("content").innerHTML = html;
+
+    } catch {
+
+      document.getElementById("content").innerHTML = `
+        <div class="empty">
+          Failed to load history
+        </div>
+      `;
+    }
+  }
+
+  // =========================================
+  // STATS
+  // =========================================
+  async function loadStats() {
+
+    try {
+
+      const res = await fetch(API + "/stats");
+
+      const data = await res.json();
+
+      let html = `
+
+        <div class="stats-box">
+
+          <b>📈 Overall Performance</b>
+
+          <br><br>
+
+          Trades:
+          ${data.overall.total_trades}
+
+          <br>
+
+          Wins:
+          ${data.overall.wins}
+
+          <br>
+
+          Losses:
+          ${data.overall.losses}
+
+          <br>
+
+          Win Rate:
+          ${data.overall.win_rate}%
+
+        </div>
+      `;
+
+      for (let strat in data.by_strategy) {
+
+        let s = data.by_strategy[strat];
+
+        html += `
+
+          <div class="stats-box">
+
+            <b>${strat}</b>
+
+            <br><br>
+
+            Trades:
+            ${s.total}
+
+            <br>
+
+            Wins:
+            ${s.wins}
+
+            <br>
+
+            Losses:
+            ${s.losses}
+
+            <br>
+
+            Win Rate:
+            ${s.win_rate}%
+
+          </div>
+        `;
+      }
+
+      document.getElementById("content").innerHTML = html;
+
+    } catch {
+
+      document.getElementById("content").innerHTML = `
+        <div class="empty">
+          Stats unavailable
+        </div>
+      `;
+    }
+  }
+
+  // =========================================
+  // BACKUP REFRESH
+  // =========================================
+  setInterval(() => {
+
+    const activeTab =
+      document.querySelector(".active-tab").innerText;
+
+    if (activeTab === "Signals") {
+
+      loadSignals();
+    }
+
+    if (activeTab === "History") {
+
+      loadHistory();
+    }
+
+    if (activeTab === "Stats") {
+
+      loadStats();
+    }
+
+  }, 10000);
+
+  // =========================================
+  // START APP
+  // =========================================
+  connectWebSocket();
+
+  loadSignals();
 
 </script>
 
 </body>
 </html>
-
