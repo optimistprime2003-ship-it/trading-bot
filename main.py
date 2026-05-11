@@ -1,42 +1,75 @@
 import os
 import json
 import logging
+import asyncio
 from datetime import datetime, timedelta
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from apscheduler.schedulers.background import BackgroundScheduler
 
-# --- LOGGING SETUP ---
+# =========================
+# IMPORT ENGINE
+# =========================
+try:
+    from engine import run_trading_bot, update_signal_status
+except ImportError as e:
+    logging.error(f"IMPORT ERROR: {e}")
+    run_trading_bot = None
+    update_signal_status = None
+
+# =========================
+# APP SETUP
+# =========================
+app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 
-# --- ALIGNED IMPORT ---
-# We use 'run_trading_bot' to match your engine's logic
-try:
-    from engine import run_trading_bot
-except ImportError as e:
-    logging.error(f"CRITICAL ERROR: Could not import engine.py correctly. Details: {e}")
-    run_trading_bot = None
-
-app = FastAPI()
 DB_FILE = "db.json"
+EXPIRY_MINUTES = 1440
 
-# --- CONFIG ---
-# Daily signals are valid for 24 hours (1440 mins) per strategy rules
-EXPIRY_MINUTES = 1440  
+# =========================
+# WEBSOCKET MANAGER
+# =========================
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections = []
 
-# ==========================================
-# DATABASE FUNCTIONS
-# ==========================================
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        disconnected = []
+
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                disconnected.append(connection)
+
+        for d in disconnected:
+            self.disconnect(d)
+
+manager = ConnectionManager()
+
+# =========================
+# DATABASE
+# =========================
 def load_db():
     if not os.path.exists(DB_FILE):
-        initial_data = {"active": [], "history": []}
-        save_db(initial_data)
-        return initial_data
+        data = {"active": [], "history": []}
+        save_db(data)
+        return data
+
     try:
         with open(DB_FILE, "r") as f:
             return json.load(f)
     except Exception as e:
-        logging.error(f"DB Read Error: {e}")
+        logging.error(f"DB LOAD ERROR: {e}")
         return {"active": [], "history": []}
 
 def save_db(data):
@@ -44,96 +77,175 @@ def save_db(data):
         with open(DB_FILE, "w") as f:
             json.dump(data, f, indent=2)
     except Exception as e:
-        logging.error(f"Disk Write Error: {e}")
+        logging.error(f"DB SAVE ERROR: {e}")
 
-# ==========================================
-# ROUTES
-# ==========================================
-
-@app.get("/")
-def home():
-    status = "Online" if run_trading_bot else "Offline (Import Error)"
-    return {"status": "Bot running", "engine_status": status}
-
-@app.get("/run")
-def run_engine():
+# =========================
+# ENGINE EXECUTION
+# =========================
+async def execute_scan():
     if not run_trading_bot:
-        return {"error": "Engine function 'run_trading_bot' not found. Check engine.py."}
+        logging.error("ENGINE NOT AVAILABLE")
+        return
 
-    logging.info("Professional Scanner Triggered...")
+    logging.info("RUNNING SIGNAL SCAN")
+
     db = load_db()
     active = db.get("active", [])
     history = db.get("history", [])
 
-    # ===============================
-    # GENERATE SIGNALS (run_trading_bot)
-    # ===============================
+    # =========================
+    # UPDATE EXISTING SIGNALS
+    # =========================
+    if update_signal_status:
+        try:
+            active = update_signal_status(active)
+        except Exception as e:
+            logging.error(f"STATUS UPDATE ERROR: {e}")
+
+    # =========================
+    # GENERATE NEW SIGNALS
+    # =========================
     try:
-        # This executes your Daily Chore and 4H Fake Breakout logic
-        new_signals = run_trading_bot() 
+        new_signals = run_trading_bot()
     except Exception as e:
-        logging.error(f"ENGINE CRASH during scan: {e}")
-        return {"error": f"Logic error: {e}"}
+        logging.error(f"SCAN ERROR: {e}")
+        return
 
-    # ===============================
-    # ADD NEW SIGNALS (NO DUPLICATES)
-    # ===============================
-    if new_signals:
-        for new in new_signals:
-            # Prevent duplicate signals for the same pair/strategy combination
-            exists = any(
-                s["pair"] == new["pair"]
-                and s.get("strategy") == new.get("strategy")
-                and s.get("side") == new.get("side")
-                for s in active
-            )
+    # =========================
+    # ADD SIGNALS
+    # =========================
+    for new in new_signals:
 
-            if not exists:
-                new["created_at"] = datetime.utcnow().isoformat()
-                new["status"] = "PENDING"
-                active.append(new)
+        exists = any(
+            s.get("pair") == new.get("pair")
+            and s.get("strategy") == new.get("strategy")
+            and s.get("side") == new.get("side")
+            and s.get("status") == "PENDING"
+            for s in active
+        )
 
-    # ===============================
-    # CLEANUP & EXPIRY
-    # ===============================
+        if not exists:
+
+            new["created_at"] = datetime.utcnow().isoformat()
+            new["status"] = "PENDING"
+
+            active.append(new)
+
+            # =========================
+            # REALTIME SIGNAL DELIVERY
+            # =========================
+            await manager.broadcast({
+                "type": "NEW_SIGNAL",
+                "data": new
+            })
+
+            logging.info(f"NEW SIGNAL SENT: {new}")
+
+    # =========================
+    # EXPIRY HANDLER
+    # =========================
     now = datetime.utcnow()
     final_active = []
 
     for s in active:
+
         try:
             created = datetime.fromisoformat(s["created_at"])
         except:
             created = now
 
-        # Expire signals after 24 hours per Strategy Rules
         if now - created > timedelta(minutes=EXPIRY_MINUTES):
             s["status"] = "EXPIRED"
             history.append(s)
+
+            await manager.broadcast({
+                "type": "SIGNAL_EXPIRED",
+                "data": s
+            })
+
+        elif s["status"] in ["TP HIT", "SL HIT"]:
+
+            history.append(s)
+
+            await manager.broadcast({
+                "type": "SIGNAL_CLOSED",
+                "data": s
+            })
+
         else:
             final_active.append(s)
 
-    db["active"], db["history"] = final_active, history
+    db["active"] = final_active
+    db["history"] = history
+
     save_db(db)
 
-    logging.info(f"Scan complete. Active Signals: {len(final_active)}")
+    logging.info(f"SCAN COMPLETE | ACTIVE: {len(final_active)}")
 
+# =========================
+# BACKGROUND SCHEDULER
+# =========================
+scheduler = BackgroundScheduler()
+
+scheduler.add_job(
+    lambda: asyncio.run(execute_scan()),
+    "interval",
+    minutes=5
+)
+
+scheduler.start()
+
+# =========================
+# ROUTES
+# =========================
+@app.get("/")
+def home():
     return {
-        "active_signals": db["active"],
-        "history_count": len(db["history"])
+        "status": "online",
+        "engine": run_trading_bot is not None
     }
 
 @app.get("/signals")
 def get_signals():
     return load_db()["active"]
 
+@app.get("/history")
+def get_history():
+    return load_db()["history"]
+
 @app.get("/health")
 def health():
     db = load_db()
+
     return {
         "engine_ready": run_trading_bot is not None,
-        "active_count": len(db.get("active", [])),
-        "history_count": len(db.get("history", []))
+        "active_signals": len(db["active"]),
+        "history_signals": len(db["history"]),
+        "websocket_clients": len(manager.active_connections)
     }
 
+@app.get("/run")
+async def manual_run():
+    await execute_scan()
+    return {"message": "Scan completed"}
+
+# =========================
+# WEBSOCKET ENDPOINT
+# =========================
+@app.websocket("/ws/signals")
+async def websocket_endpoint(websocket: WebSocket):
+
+    await manager.connect(websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# =========================
+# START SERVER
+# =========================
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=10000)
