@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="refresh" content="30">
     <title>Quantum Signal Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -25,7 +26,6 @@
             background-image: radial-gradient(circle at top right, #1e293b, #05070a);
             color: var(--text-main);
             min-height: 100vh;
-            padding-bottom: 80px; /* Space for bottom nav */
         }
 
         /* Premium Glass Header */
@@ -50,122 +50,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* Floating Bottom Navigation */
-        .tabs {
-            display: flex;
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            font-size: 14px;
-            color: var(--text-dim);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 15px;
-            cursor: pointer;
-        }
-
-        .active-tab {
-            color: white;
-            background: rgba(56, 189, 248, 0.2);
-            font-weight: 600;
-        }
-
         .container { padding: 16px; max-width: 600px; margin: 0 auto; }
-
-        /* Premium Signal Cards */
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid rgba(255,255,255,0.05);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-
-        .card:active { transform: scale(0.98); }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 4px;
-        }
-
-        .buy::before { background: var(--success); box-shadow: 0 0 15px var(--success); }
-        .sell::before { background: var(--danger); box-shadow: 0 0 15px var(--danger); }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-
-        .pair-name { font-size: 1.4rem; font-weight: 700; }
-        .side-badge {
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-        .buy .side-badge { background: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .sell .side-badge { background: rgba(244, 63, 94, 0.2); color: var(--danger); }
-
-        .grid-data {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .data-item { font-size: 13px; color: var(--text-dim); }
-        .data-val { display: block; font-size: 16px; color: white; font-weight: 600; margin-top: 2px; }
-
-        .status-pill {
-            margin-top: 15px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--primary);
-            background: rgba(56, 189, 248, 0.1);
-            padding: 4px 10px;
-            border-radius: 6px;
-            display: inline-block;
-        }
-
-        /* Stats Dashboard Look */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 20px;
-            text-align: center;
-        }
-
-        .stat-val { font-size: 24px; font-weight: 700; display: block; color: var(--primary); }
-        .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; }
 
         .live-indicator {
             display: flex;
@@ -174,6 +59,10 @@
             font-size: 12px;
             color: var(--success);
             margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         .dot {
@@ -185,23 +74,51 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
+            0% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            50% { opacity: 0.4; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+            100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
 
-        .toast {
-            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
-            background: var(--primary); color: #000;
-            padding: 12px 24px; border-radius: 30px;
-            font-weight: 700; z-index: 2000;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-            animation: slideDown 0.4s ease forwards;
+        /* Signal Table Styling designed to catch the Python output */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
-        @keyframes slideDown {
-            from { top: -50px; opacity: 0; }
-            to { top: 30px; opacity: 1; }
+        th {
+            text-align: left;
+            padding: 15px;
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        td {
+            padding: 18px 15px;
+            font-size: 15px;
+        }
+
+        /* Makes the Pair Name stand out */
+        td:first-child {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Makes the Strategy text look dim */
+        td:last-child {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        /* Hover effect for the rows injected by Python */
+        tbody tr:hover {
+            background: rgba(255,255,255,0.05);
         }
     </style>
 </head>
@@ -213,130 +130,24 @@
 
 <div class="container" id="main-content">
     <div class="live-indicator">
-        <span class="dot"></span> SECURE CONNECTION ACTIVE
+        <span class="dot"></span> SECURE CONNECTION ACTIVE & SCANNING
     </div>
+    
     <div id="view-container">
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Pair</th>
+                    <th>Signal</th>
+                    <th>Strategy</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{SIGNALS}}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<div class="tabs">
-    <div class="tab active-tab" onclick="switchTab(event, 'signals')">Signals</div>
-    <div class="tab" onclick="switchTab(event, 'history')">History</div>
-    <div class="tab" onclick="switchTab(event, 'stats')">Performance</div>
-</div>
-
-<audio id="alertSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
-
-<script>
-    const protocol = window.location.protocol;
-    const host = window.location.host;
-    const API = `${protocol}//${host}`;
-    const WS_URL = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/ws/signals`;
-
-    let currentView = 'signals';
-
-    async function switchTab(event, view) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
-        event.currentTarget.classList.add('active-tab');
-        currentView = view;
-        refreshData();
-    }
-
-    function refreshData() {
-        if(currentView === 'signals') loadSignals();
-        if(currentView === 'history') loadHistory();
-        if(currentView === 'stats') loadStats();
-    }
-
-    async function loadSignals() {
-        const res = await fetch(`${API}/signals`);
-        const data = await res.json();
-        const container = document.getElementById('view-container');
-        
-        if(data.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding:50px; color:#64748b;">Waiting for market conditions...</div>';
-            return;
-        }
-
-        container.innerHTML = data.map(s => `
-            <div class="card ${s.side.toLowerCase()}">
-                <div class="card-header">
-                    <div>
-                        <span class="pair-name">${s.pair}</span>
-                        <div style="font-size:12px; color:var(--primary)">${s.strategy}</div>
-                    </div>
-                    <span class="side-badge">${s.side}</span>
-                </div>
-                <div class="grid-data">
-                    <div class="data-item">Entry <span class="data-val">${s.entry}</span></div>
-                    <div class="data-item">Target <span class="data-val" style="color:var(--success)">${s.tp}</span></div>
-                    <div class="data-item">Stop Loss <span class="data-val" style="color:var(--danger)">${s.sl}</span></div>
-                    <div class="data-item">Status <span class="data-val" style="font-size:12px">${s.status}</span></div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    async function loadStats() {
-        const res = await fetch(`${API}/stats`);
-        const data = await res.json();
-        const container = document.getElementById('view-container');
-        
-        container.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-card"><span class="stat-val">${data.overall.win_rate}%</span><span class="stat-label">Win Rate</span></div>
-                <div class="stat-card"><span class="stat-val">${data.overall.total_trades}</span><span class="stat-label">Total Trades</span></div>
-            </div>
-            ${Object.keys(data.by_strategy).map(strat => `
-                <div class="card" style="padding:15px; border-left: 2px solid var(--primary)">
-                    <div style="display:flex; justify-content:space-between; align-items:center">
-                        <span style="font-weight:700">${strat}</span>
-                        <span style="color:var(--success); font-weight:700">${data.by_strategy[strat].win_rate}% WR</span>
-                    </div>
-                </div>
-            `).join('')}
-        `;
-    }
-
-    async function loadHistory() {
-        const res = await fetch(`${API}/history`);
-        const data = await res.json();
-        const container = document.getElementById('view-container');
-        container.innerHTML = data.reverse().map(s => `
-            <div class="card" style="opacity: 0.8; padding:15px">
-                <div style="display:flex; justify-content:space-between">
-                    <span><b>${s.pair}</b></span>
-                    <span style="color:${s.status === 'TP HIT' ? 'var(--success)' : 'var(--danger)'}">${s.status}</span>
-                </div>
-                <div style="font-size:12px; margin-top:5px; color:var(--text-dim)">${s.strategy} | Entry: ${s.entry}</div>
-            </div>
-        `).join('');
-    }
-
-    // WebSocket & Alerts
-    function initWS() {
-        const socket = new WebSocket(WS_URL);
-        socket.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            if(msg.type === 'NEW_SIGNAL') {
-                const s = msg.data;
-                // Premium Alerts
-                document.getElementById('alertSound').play();
-                if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-                
-                const toast = document.createElement('div');
-                toast.className = 'toast';
-                toast.innerText = `NEW SIGNAL: ${s.pair} ${s.side}`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 4000);
-            }
-            refreshData();
-        };
-        socket.onclose = () => setTimeout(initWS, 3000);
-    }
-
-    initWS();
-    refreshData();
-</script>
 </body>
 </html>
