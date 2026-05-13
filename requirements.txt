@@ -1,11 +1,5 @@
 fastapi
 uvicorn
-pandas
-numpy
+apscheduler
 requests
 pytz
-python-dateutil
-pydantic
-pydantic-core
-apscheduler
-websockets
