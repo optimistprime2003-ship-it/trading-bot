@@ -1,309 +1,156 @@
 import requests
 import os
-import math
+import logging
 from datetime import datetime, time
 import pytz
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD", "BTCUSD"]
+# 6 Forex pairs + 2 Cryptos [cite: 75, 172]
+PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD", "BTC/USD", "ETH/USD"]
 
-ACCOUNT_BALANCE = 10000.0
-RISK_PER_TRADE = 0.01
-MAX_ALLOWED_SPREAD_PIPS = 3.0
-
+# API Keys from Environment Variables for Render
 API_KEYS = [
-    os.environ.get("KEY_ONE", "d93af08b103e43c99034dd6362a239d3"),
-    os.environ.get("KEY_TWO", "738fd3d524944eadba4f533fe8832525")
+    os.environ.get("TWELVE_DATA_KEY_ONE", "your_key_1"),
+    os.environ.get("TWELVE_DATA_KEY_TWO", "your_key_2")
 ]
-
 CURRENT_KEY_INDEX = 0
 
 NY_TZ = pytz.timezone("America/New_York")
 
 # ==============================================================================
-# FETCH DATA
+# DATA FETCHING WITH API ROTATION
 # ==============================================================================
 def fetch_data(symbol, interval, size=100):
-
     global CURRENT_KEY_INDEX
-
+    
+    # Try each key once
     for _ in range(len(API_KEYS)):
-
         current_key = API_KEYS[CURRENT_KEY_INDEX]
-
-        url = (
-            f"https://api.twelvedata.com/time_series?"
-            f"symbol={symbol}&interval={interval}"
-            f"&outputsize={size}&apikey={current_key}"
-        )
-
+        url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize={size}&apikey={current_key}"
+        
         try:
-
             res = requests.get(url, timeout=15).json()
-
+            
+            # Handle Rate Limit (429) by switching keys
             if res.get("code") == 429:
-                CURRENT_KEY_INDEX = (
-                    CURRENT_KEY_INDEX + 1
-                ) % len(API_KEYS)
+                logging.warning(f"API Key {CURRENT_KEY_INDEX} rate limited. Switching...")
+                CURRENT_KEY_INDEX = (CURRENT_KEY_INDEX + 1) % len(API_KEYS)
                 continue
-
+            
             return list(reversed(res["values"])) if "values" in res else []
-
-        except:
+        except Exception as e:
+            logging.error(f"Fetch Error: {e}")
             continue
-
+            
     return []
 
 # ==============================================================================
-# NEWS FILTER
+# STRATEGY 1: DAILY PINBAR (1:1 Target)
 # ==============================================================================
-def is_news_safe(symbol):
+def get_daily_pinbar_signals(pair, daily_data):
+    """Rules from Sample Trading Plan [cite: 92-128]"""
+    if len(daily_data) < 55: return None
+    
+    closes = [float(x["close"]) for x in daily_data]
+    l_day = daily_data[-2] # Previous day's closed candle
+    
+    d_op, d_cl = float(l_day["open"]), float(l_day["close"])
+    d_hi, d_lo = float(l_day["high"]), float(l_day["low"])
+    candle_range = d_hi - d_lo
+    if candle_range == 0: return None
+    
+    # Pips calculation (Handles Crypto and JPY)
+    pip_unit = 1.0 if "USD" in pair and "/" in pair else (0.01 if "JPY" in pair else 0.0001)
 
-    global CURRENT_KEY_INDEX
+    # EMA Trend [cite: 98, 115]
+    e8 = calculate_ema(closes[:-1], 8)[-1]
+    e20 = calculate_ema(closes[:-1], 20)[-1]
+    e50 = calculate_ema(closes[:-1], 50)[-1]
 
-    key = API_KEYS[CURRENT_KEY_INDEX]
+    # SELL: Trend down, Price touches 8 EMA, Pinbar body in top 30% [cite: 94-104]
+    if e8 < e20 < e50 and d_hi >= e8:
+        if min(d_op, d_cl) >= (d_hi - (candle_range * 0.30)):
+            entry = d_lo - (2 * pip_unit)
+            sl = d_hi + (2 * pip_unit)
+            return {"strategy": "DailyPin", "side": "SELL", "entry": entry, "sl": sl, "tp": entry - (sl - entry)}
 
-    try:
-
-        url = f"https://api.twelvedata.com/economic_calendar?apikey={key}"
-
-        res = requests.get(url).json()
-
-        events = res.get("events", [])
-
-        now = datetime.now(pytz.UTC)
-
-        curr = [symbol[:3], symbol[3:]]
-
-        for e in events:
-
-            if (
-                e.get("importance") == "High"
-                and e.get("currency") in curr
-            ):
-
-                e_time = datetime.fromisoformat(
-                    e.get("date").replace("Z", "+00:00")
-                )
-
-                if abs((e_time - now).total_seconds()) < 7200:
-                    return False
-
-        return True
-
-    except:
-        return True
+    # BUY: Trend up, Price touches 8 EMA, Pinbar body in bottom 30% [cite: 111-122]
+    elif e8 > e20 > e50 and d_lo <= e8:
+        if max(d_op, d_cl) <= (d_lo + (candle_range * 0.30)):
+            entry = d_hi + (2 * pip_unit)
+            sl = d_lo - (2 * pip_unit)
+            return {"strategy": "DailyPin", "side": "BUY", "entry": entry, "sl": sl, "tp": entry + (entry - sl)}
+    
+    return None
 
 # ==============================================================================
-# EMA
+# STRATEGY 2: 4H RANGE FAKE BREAKOUT (2:1 Target)
 # ==============================================================================
+def get_4h_range_signals(pair, h4_data, m5_data):
+    """Rules from Complete 4-Hour Range Strategy [cite: 144-163]"""
+    if not h4_data or len(m5_data) < 2: return None
+
+    # Mark the high/low of the first 4H candle of the day [cite: 151]
+    range_h = float(h4_data[0]["high"])
+    range_l = float(h4_data[0]["low"])
+
+    prev_m5_cl = float(m5_data[-2]["close"])
+    curr_m5_cl = float(m5_data[-1]["close"])
+
+    # SELL: Close outside high, then close back inside [cite: 157]
+    if prev_m5_cl > range_h and curr_m5_cl < range_h:
+        sl = range_h # Default SL at breakout high [cite: 160]
+        risk = sl - curr_m5_cl
+        return {"strategy": "4H_Range", "side": "SELL", "entry": curr_m5_cl, "sl": sl, "tp": curr_m5_cl - (2 * risk)}
+
+    # BUY: Close outside low, then close back inside [cite: 158]
+    if prev_m5_cl < range_l and curr_m5_cl > range_l:
+        sl = range_l # Default SL at breakout low [cite: 160]
+        risk = curr_m5_cl - sl
+        return {"strategy": "4H_Range", "side": "BUY", "entry": curr_m5_cl, "sl": sl, "tp": curr_m5_cl + (2 * risk)}
+
+    return None
+
 def calculate_ema(data, period):
-
     ema = []
-
-    multiplier = 2 / (period + 1)
-
-    for i, price in enumerate(data):
-
-        if i == 0:
-            ema.append(price)
-
-        else:
-            ema.append(
-                ((price - ema[i - 1]) * multiplier)
-                + ema[i - 1]
-            )
-
+    m = 2 / (period + 1)
+    for i, p in enumerate(data):
+        if i == 0: ema.append(p)
+        else: ema.append(((p - ema[i-1]) * m) + ema[i-1])
     return ema
 
-# ==============================================================================
-# PINBAR VALIDATION
-# ==============================================================================
-def is_valid_pinbar(op, cl, hi, lo, bullish=True):
-
-    body = abs(cl - op)
-
-    upper_wick = hi - max(op, cl)
-
-    lower_wick = min(op, cl) - lo
-
-    candle_range = hi - lo
-
-    if candle_range == 0:
-        return False
-
-    if bullish:
-        return (
-            lower_wick > body * 2
-            and upper_wick < body
-        )
-
-    return (
-        upper_wick > body * 2
-        and lower_wick < body
-    )
-
-# ==============================================================================
-# POSITION SIZE
-# ==============================================================================
-def calculate_position_size(pair, risk_amount, stop_loss_pips):
-
-    pip_value = 10
-
-    if "JPY" in pair:
-        pip_value = 9.1
-
-    lots = risk_amount / (stop_loss_pips * pip_value)
-
-    return round(lots, 2)
-
-# ==============================================================================
-# MAIN ENGINE
-# ==============================================================================
 def run_trading_bot():
-
-    now_ny = datetime.now(NY_TZ)
-
-    is_ny_session = (
-        time(8, 0)
-        <= now_ny.time()
-        <= time(16, 0)
-    )
-
-    is_pinbar_check_time = now_ny.minute < 10
-
-    signals = []
-
+    all_signals = []
     for pair in PAIRS:
+        daily = fetch_data(pair, "1day", 60)
+        h4 = fetch_data(pair, "4h", 10)
+        m5 = fetch_data(pair, "5min", 20)
+        
+        s1 = get_daily_pinbar_signals(pair, daily)
+        if s1: 
+            s1["pair"] = pair
+            all_signals.append(s1)
+            
+        s2 = get_4h_range_signals(pair, h4, m5)
+        if s2: 
+            s2["pair"] = pair
+            all_signals.append(s2)
+            
+    return all_signals
 
-        pip_unit = 0.01 if "JPY" in pair else 0.0001
-
-        # ======================================================
-        # DAILY PINBAR STRATEGY
-        # ======================================================
-        if is_ny_session or is_pinbar_check_time:
-
-            daily = fetch_data(pair, "1day", 55)
-
-            if daily and is_news_safe(pair):
-
-                closes = [
-                    float(x["close"])
-                    for x in daily
-                ]
-
-                l_day = daily[-2]
-
-                d_op = float(l_day["open"])
-                d_cl = float(l_day["close"])
-                d_hi = float(l_day["high"])
-                d_lo = float(l_day["low"])
-
-                e8 = calculate_ema(closes[:-1], 8)[-1]
-                e20 = calculate_ema(closes[:-1], 20)[-1]
-                e50 = calculate_ema(closes[:-1], 50)[-1]
-
-                # BUY
-                if (
-                    e8 > e20 > e50
-                    and d_lo <= e8
-                    and is_valid_pinbar(
-                        d_op,
-                        d_cl,
-                        d_hi,
-                        d_lo,
-                        bullish=True
-                    )
-                ):
-
-                    entry = d_hi + (2 * pip_unit)
-                    sl = d_lo - (2 * pip_unit)
-
-                    sl_p = abs(entry - sl) / pip_unit
-
-                    signals.append({
-                        "pair": pair,
-                        "strategy": "DailyPin",
-                        "side": "BUY",
-                        "entry": round(entry, 5),
-                        "sl": round(sl, 5),
-                        "tp": round(entry + (entry - sl), 5),
-                        "lots": calculate_position_size(
-                            pair,
-                            ACCOUNT_BALANCE * RISK_PER_TRADE,
-                            sl_p
-                        )
-                    })
-
-                # SELL
-                elif (
-                    e8 < e20 < e50
-                    and d_hi >= e8
-                    and is_valid_pinbar(
-                        d_op,
-                        d_cl,
-                        d_hi,
-                        d_lo,
-                        bullish=False
-                    )
-                ):
-
-                    entry = d_lo - (2 * pip_unit)
-                    sl = d_hi + (2 * pip_unit)
-
-                    sl_p = abs(entry - sl) / pip_unit
-
-                    signals.append({
-                        "pair": pair,
-                        "strategy": "DailyPin",
-                        "side": "SELL",
-                        "entry": round(entry, 5),
-                        "sl": round(sl, 5),
-                        "tp": round(entry - (sl - entry), 5),
-                        "lots": calculate_position_size(
-                            pair,
-                            ACCOUNT_BALANCE * RISK_PER_TRADE,
-                            sl_p
-                        )
-                    })
-
-    return signals
-
-# ==============================================================================
-# SIGNAL STATUS UPDATE
-# ==============================================================================
 def update_signal_status(active_signals):
-
-    updated_signals = []
-
+    # Logic to check current price against TP/SL and update status
     for s in active_signals:
-
-        price_data = fetch_data(s["pair"], "1min", 2)
-
-        if not price_data:
-            updated_signals.append(s)
-            continue
-
+        price_data = fetch_data(s["pair"], "1min", 1)
+        if not price_data: continue
         curr_p = float(price_data[-1]["close"])
-
+        
         if s["side"] == "BUY":
-
-            if curr_p >= s["tp"]:
-                s["status"] = "TP HIT"
-
-            elif curr_p <= s["sl"]:
-                s["status"] = "SL HIT"
-
+            if curr_p >= s["tp"]: s["status"] = "TP HIT"
+            elif curr_p <= s["sl"]: s["status"] = "SL HIT"
         else:
-
-            if curr_p <= s["tp"]:
-                s["status"] = "TP HIT"
-
-            elif curr_p >= s["sl"]:
-                s["status"] = "SL HIT"
-
-        updated_signals.append(s)
-
-    return updated_signals
+            if curr_p <= s["tp"]: s["status"] = "TP HIT"
+            elif curr_p >= s["sl"]: s["status"] = "SL HIT"
+    return active_signals
