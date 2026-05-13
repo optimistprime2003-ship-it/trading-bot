@@ -1,63 +1,63 @@
 import os
+import logging
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import engine
-import uvicorn
-import logging
 
 app = FastAPI()
 latest_signals = []
 
-# --- THE FIX: We move the Dashboard to the root "/" so the App sees it first ---
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
     global latest_signals
     
-    # 1. Look for your index.html file
-    if os.path.exists("index.html"):
+    # 1. Load your custom index.html file
+    try:
         with open("index.html", "r") as f:
             html_template = f.read()
-    else:
-        return "<h1>Error: index.html not found! Ensure it is in your main GitHub folder.</h1>"
+    except FileNotFoundError:
+        return "<h1>Error: index.html not found in root directory.</h1>"
 
-    # 2. Build the signal rows using your premium styling
+    # 2. Convert signal data into HTML rows for your table
+    # Matches the 'Pair | Signal | Strategy' columns in your index.html
     rows = ""
     for s in latest_signals[:15]:
-        # Colors match your Buy/Sell indicators
+        # Using the exact hex colors from your CSS :root variables
         color = "#10b981" if s['type'] == "BUY" else "#f43f5e"
         rows += f"""
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <td style="padding:15px; font-weight:700;">{s['symbol']}</td>
-            <td style="padding:15px; color:{color}; font-weight:bold;">{s['type']}</td>
-            <td style="padding:15px; color:#94a3b8; font-size:13px;">{s['strat']}</td>
+        <tr>
+            <td>{s['symbol']}</td>
+            <td style="color:{color}; font-weight:bold;">{s['type']}</td>
+            <td>{s['strat']}</td>
         </tr>
         """
 
     if not rows:
-        rows = "<tr><td colspan='3' style='text-align:center; padding:30px; color:#94a3b8;'>Scanning markets for Pin Bars and EMA Pullbacks...</td></tr>"
+        rows = "<tr><td colspan='3' style='text-align:center; padding:30px; color:#94a3b8;'>Scanning Market for Patterns...</td></tr>"
 
-    # 3. "Sinking" the data into your HTML placeholder
+    # 3. Inject the rows into your {{SIGNALS}} placeholder
     return html_template.replace("{{SIGNALS}}", rows)
 
 @app.get("/scan")
 def scan():
     global latest_signals
-    logging.info("Cron heartbeat received. Starting Market Scan.")
+    logging.info("Cron heartbeat received. Scanning markets...")
     
-    # This triggers your 1D and 5M strategy checks
+    # Calls your engine logic for EURUSD, GBPUSD, and BTC
     new_found = engine.check_strategies()
     if new_found:
-        # Add new signals to the top of the list
+        # Adds newest signals to the top of the list
         latest_signals = new_found + latest_signals
-        # Keep only the last 20 to keep the dashboard fast
-        latest_signals = latest_signals[:20]
+        latest_signals = latest_signals[:30] # Keep recent history
         
-    return {"found": len(new_found), "total_active": len(latest_signals)}
+    return {"found": len(new_found), "signals": new_found}
 
-# Keep the JSON status here for your own troubleshooting
+# Keeps your rotation status accessible via /status
 @app.get("/status")
 def status():
-    return {"status": "online", "rotation": "active", "cache_size": len(latest_signals)}
+    return {"status": "online", "rotation": "active", "signals_cached": len(latest_signals)}
 
 if __name__ == "__main__":
+    # Standard Render/Cloud deployment port
     uvicorn.run(app, host="0.0.0.0", port=10000)
