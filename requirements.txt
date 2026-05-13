@@ -1,5 +1,5 @@
 fastapi
 uvicorn
-apscheduler
 requests
-pytz
+pandas
+python-multipart
