@@ -5,90 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="refresh" content="30">
     <title>Quantum Signal Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #05070a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --card: rgba(30, 41, 59, 0.5);
             --primary: #38bdf8;
             --success: #10b981;
             --danger: #f43f5e;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
+            --text: #f8fafc;
+            --dim: #94a3b8;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             margin: 0; font-family: 'Inter', sans-serif; background: var(--bg);
             background-image: radial-gradient(circle at top right, #1e293b, #05070a);
-            color: var(--text-main); min-height: 100vh;
+            color: var(--text); min-height: 100vh;
         }
         header {
-            padding: 20px; text-align: center; background: rgba(2, 6, 23, 0.8);
-            backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.1);
-            position: sticky; top: 0; z-index: 1000;
+            padding: 15px; text-align: center; background: rgba(2, 6, 23, 0.9);
+            backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky; top: 0; z-index: 100;
         }
-        header h1 {
-            margin: 0; font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase;
-            background: linear-gradient(to right, #38bdf8, #818cf8);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        header h1 { margin: 0; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; color: var(--primary); }
+        
+        .container { padding: 15px; max-width: 500px; margin: 0 auto; }
 
-        /* Global Stats Bar */
-        .global-stats {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
-        }
-        .main-stat {
-            background: var(--card-bg); padding: 15px; border-radius: 12px;
-            text-align: center; border: 1px solid rgba(255,255,255,0.05);
-        }
-        .stat-val { font-size: 22px; font-weight: 700; color: var(--primary); }
-        .stat-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-top: 4px; }
+        /* Main Performance Stats */
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-box { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .stat-box small { font-size: 9px; text-transform: uppercase; color: var(--dim); letter-spacing: 1px; }
+        .stat-box div { font-size: 20px; font-weight: 700; margin-top: 5px; }
 
-        /* Pair Performance Grid */
-        .pair-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;
-        }
-        .stat-card {
-            background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 10px;
-            text-align: center; border: 1px solid rgba(255,255,255,0.05);
-        }
-        .pair-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; }
-        .pair-rate { color: var(--success); font-size: 13px; font-weight: 700; }
-        .pair-total { color: var(--text-dim); font-size: 9px; }
+        /* Pair Performance Cards */
+        .pair-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        .pair-card { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+        .p-name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }
+        .p-wr { font-size: 14px; font-weight: 700; color: var(--success); }
+        .p-count { font-size: 8px; color: var(--dim); }
 
-        .live-indicator {
+        .live-tag {
             display: flex; align-items: center; justify-content: center;
-            font-size: 11px; color: var(--success); margin-bottom: 15px;
-            background: var(--card-bg); padding: 8px; border-radius: 8px;
+            font-size: 10px; color: var(--success); background: rgba(16, 185, 129, 0.1);
+            padding: 6px; border-radius: 6px; margin-bottom: 15px; font-weight: 600;
         }
-        .dot { height: 6px; width: 6px; background: var(--success); border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite; }
+        .dot { height: 6px; width: 6px; background: var(--success); border-radius: 50%; margin-right: 8px; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        table {
-            width: 100%; border-collapse: collapse; background: var(--card-bg);
-            border-radius: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);
-        }
-        th { text-align: left; padding: 12px; font-size: 11px; color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        td { padding: 15px 12px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        td:last-child { color: var(--text-dim); font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+        th { text-align: left; padding: 12px; font-size: 10px; color: var(--dim); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        td { padding: 14px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        td:last-child { color: var(--dim); font-size: 11px; }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>Quantum Signal Pro</h1>
-</header>
+<header><h1>Quantum Signal Pro</h1></header>
 
 <div class="container">
-    <div class="global-stats">
-        <div class="main-stat">
-            <div class="stat-val">{{TOTAL}}</div>
-            <div class="stat-label">Total Signals</div>
+    <div class="stats-row">
+        <div class="stat-box">
+            <small>Total Signals</small>
+            <div style="color: var(--primary);">{{TOTAL}}</div>
         </div>
-        <div class="main-stat">
-            <div class="stat-val" style="color: var(--success);">{{WINRATE}}</div>
-            <div class="stat-label">Global Win Rate</div>
+        <div class="stat-box">
+            <small>Avg. Win Rate</small>
+            <div style="color: var(--success);">{{WINRATE}}</div>
         </div>
     </div>
 
@@ -96,8 +78,8 @@
         {{PAIR_STATS}}
     </div>
 
-    <div class="live-indicator">
-        <span class="dot"></span> LIVE MARKET SCANNER ACTIVE
+    <div class="live-tag">
+        <div class="dot"></div> ENGINE ACTIVE: SCANNING M5/M15/H4
     </div>
 
     <table>
