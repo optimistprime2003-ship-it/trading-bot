@@ -8,12 +8,12 @@ import pytz
 # CONFIGURATION
 # ==============================================================================
 # 6 Forex pairs + 2 Cryptos [cite: 75, 172]
-PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD", "BTC/USD", "ETH/USD"]
+PAIRS = ["EURUSD", "USDJPY", "GBPJPY", "AUDUSD", "EURJPY", "GBPUSD", "BTC/USD", "XAU/USD"]
 
 # API Keys from Environment Variables for Render
 API_KEYS = [
-    os.environ.get("TWELVE_DATA_KEY_ONE", "your_key_1"),
-    os.environ.get("TWELVE_DATA_KEY_TWO", "your_key_2")
+    os.environ.get("TWELVE_DATA_KEY_ONE", "d93af08b103e43c99034dd6362a239d3"),
+    os.environ.get("TWELVE_DATA_KEY_TWO", "738fd3d524944eadba4f533fe8832525")
 ]
 CURRENT_KEY_INDEX = 0
 
