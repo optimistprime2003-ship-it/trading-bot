@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
 <meta http-equiv="refresh" content="30">
 
 <title>Quantum Signal Pro</title>
@@ -208,12 +211,13 @@ margin-top:18px;
 background:var(--card);
 border:1px solid var(--border);
 border-radius:22px;
-overflow:hidden;
+overflow:auto;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
+min-width:650px;
 }
 
 th{
@@ -229,23 +233,7 @@ td{
 padding:16px;
 font-size:13px;
 border-bottom:1px solid rgba(255,255,255,.03);
-}
-
-.empty-state{
-padding:40px 24px;
-text-align:center;
-}
-
-.empty-state h3{
-margin:0 0 10px;
-font-size:18px;
-}
-
-.empty-state p{
-margin:0;
-color:var(--dim);
-font-size:13px;
-line-height:1.6;
+white-space:nowrap;
 }
 
 .alert-box{
@@ -260,6 +248,7 @@ color:#fecdd3;
 }
 
 </style>
+
 </head>
 
 <body>
@@ -273,12 +262,16 @@ color:#fecdd3;
 <div class="hero">
 
 <div class="hero-top">
-<div class="hero-title">AI Market Scanner</div>
+
+<div class="hero-title">
+AI Market Scanner
+</div>
 
 <div class="live-pill">
 <div class="pulse"></div>
 LIVE
 </div>
+
 </div>
 
 <div class="stats-row">
@@ -290,19 +283,30 @@ LIVE
 
 <div class="stat-box">
 <small>Avg Win Rate</small>
-<div style="color:var(--success)">{{WINRATE}}</div>
+<div style="color:var(--success)">
+{{WINRATE}}
+</div>
 </div>
 
 </div>
 
 <div class="scanner-box">
-<strong>Last Scan:</strong> {{LAST_SCAN}}<br>
-<strong>Status:</strong> {{SCAN_RESULT}}
-</div>
+
+<strong>Last Scan:</strong>
+{{LAST_SCAN}}
+
+<br><br>
+
+<strong>Status:</strong>
+{{SCAN_RESULT}}
 
 </div>
 
-<div class="section-title">Pair Performance</div>
+</div>
+
+<div class="section-title">
+Pair Performance
+</div>
 
 <div class="pair-grid">
 {{PAIR_STATS}}
@@ -312,43 +316,64 @@ LIVE
 LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
 </div>
 
-<div class="section-title">Signal History</div>
+<div class="section-title">
+Signal History
+</div>
 
 <div class="signals-card">
 
 <table>
+
 <thead>
+
 <tr>
+
 <th>Pair</th>
+
 <th>Signal</th>
-<th>Strategy</th>
-<th>Time</th>
+
+<th>Entry</th>
+
+<th>SL</th>
+
+<th>TP</th>
+
+<th>RR</th>
+
 </tr>
+
 </thead>
 
 <tbody>
+
 {{SIGNALS}}
+
 </tbody>
+
 </table>
-
-<div class="empty-state">
-<h3>No Active Signals</h3>
-
-<p>
-The engine is scanning the market every 5 minutes.
-Signals will automatically appear here once all conditions are met.
-</p>
-</div>
 
 </div>
 
 <div class="alert-box">
-<strong>Market Status:</strong><br>
-No signal setup has met confirmation conditions yet.
-The scanner remains active and monitoring live price action.
+
+<strong>Market Status:</strong>
+
+<br><br>
+
+The engine is actively scanning:
+<br>
+• 1D Pin Bar setups
+<br>
+• H4 NY Fakeouts
+<br>
+• 5M confirmations
+<br><br>
+
+Signals appear automatically when all conditions align.
+
 </div>
 
 </div>
 
 </body>
-                                   </html>
+</html>
