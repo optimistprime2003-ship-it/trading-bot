@@ -2,65 +2,233 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="30">
     <title>Quantum Signal Pro</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --bg: #05070a; --card: rgba(30, 41, 59, 0.4); --primary: #38bdf8;
-            --success: #10b981; --danger: #f43f5e; --text: #f8fafc; --dim: #94a3b8;
+            --bg: #05070a;
+            --card: rgba(30,41,59,0.45);
+            --primary: #38bdf8;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --text: #f8fafc;
+            --dim: #94a3b8;
         }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
-            margin: 0; font-family: 'Inter', sans-serif; background: var(--bg);
-            background-image: radial-gradient(circle at top right, #1e293b, #05070a);
-            color: var(--text); min-height: 100vh;
-        }
-        header {
-            padding: 15px; text-align: center; background: rgba(2, 6, 23, 0.9);
-            backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.05);
-            position: sticky; top: 0; z-index: 100;
-        }
-        header h1 { margin: 0; font-size: 0.9rem; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); }
-        .container { padding: 15px; max-width: 500px; margin: 0 auto; }
-        
-        /* Stats Summary */
-        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-box { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-        .stat-box small { font-size: 9px; text-transform: uppercase; color: var(--dim); letter-spacing: 1px; }
-        .stat-box div { font-size: 22px; font-weight: 700; margin-top: 5px; }
 
-        /* Pair Strength Grid */
-        .pair-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-        .pair-card { background: rgba(255,255,255,0.02); padding: 10px; border-radius: 10px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-        .p-name { font-size: 10px; font-weight: bold; margin-bottom: 2px; }
-        .p-wr { font-size: 13px; font-weight: 700; color: var(--success); }
-        .p-count { font-size: 8px; color: var(--dim); }
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            background-image: radial-gradient(circle at top right, #1e293b, #05070a);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 15px;
+            text-align: center;
+            background: rgba(2,6,23,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--primary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 550px;
+            margin: auto;
+            padding: 15px;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+        }
+
+        .stat-box small {
+            color: var(--dim);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-box div {
+            margin-top: 5px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .scanner-box {
+            margin-bottom: 15px;
+            background: rgba(56,189,248,0.08);
+            border: 1px solid rgba(56,189,248,0.15);
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 12px;
+        }
+
+        .pair-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .pair-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .p-name {
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .p-wr {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--success);
+            margin-top: 4px;
+        }
+
+        .p-count {
+            font-size: 9px;
+            color: var(--dim);
+        }
 
         .live-tag {
-            display: flex; align-items: center; justify-content: center;
-            font-size: 10px; color: var(--primary); background: rgba(56, 189, 248, 0.1);
-            padding: 8px; border-radius: 8px; margin-bottom: 15px; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(56,189,248,0.1);
+            border: 1px solid rgba(56,189,248,0.2);
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: var(--primary);
+            font-weight: 600;
         }
-        .dot { height: 6px; width: 6px; background: var(--primary); border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
-        th { text-align: left; padding: 12px; font-size: 10px; color: var(--dim); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        td { padding: 14px 12px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            background: var(--card);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            color: var(--dim);
+            font-size: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        td {
+            padding: 14px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
     </style>
 </head>
 <body>
-<header><h1>Quantum Signal Pro</h1></header>
+
+<header>
+    <h1>Quantum Signal Pro</h1>
+</header>
+
 <div class="container">
+
     <div class="stats-row">
-        <div class="stat-box"><small>Total Signals</small><div style="color: var(--text);">{{TOTAL}}</div></div>
-        <div class="stat-box"><small>Avg. Win Rate</small><div style="color: var(--success);">{{WINRATE}}</div></div>
+        <div class="stat-box">
+            <small>Total Signals</small>
+            <div>{{TOTAL}}</div>
+        </div>
+
+        <div class="stat-box">
+            <small>Avg Win Rate</small>
+            <div style="color: var(--success)">{{WINRATE}}</div>
+        </div>
     </div>
-    <div class="pair-grid">{{PAIR_STATS}}</div>
-    <div class="live-tag"><div class="dot"></div> ENGINE: 1D TREND + H4 RANGE (5M ENTRY)</div>
-    <table><thead><tr><th>Pair</th><th>Signal</th><th>Strategy</th></tr></thead><tbody>{{SIGNALS}}</tbody></table>
+
+    <div class="scanner-box">
+        <strong>Last Scan:</strong> {{LAST_SCAN}}<br>
+        <strong>Status:</strong> {{SCAN_RESULT}}
+    </div>
+
+    <div class="pair-grid">
+        {{PAIR_STATS}}
+    </div>
+
+    <div class="live-tag">
+        <div class="dot"></div>
+        LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Pair</th>
+                <th>Signal</th>
+                <th>Strategy</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {{SIGNALS}}
+        </tbody>
+    </table>
+
 </div>
+
 </body>
 </html>
