@@ -1,234 +1,354 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="30">
-    <title>Quantum Signal Pro</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="refresh" content="30">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Quantum Signal Pro</title>
 
-    <style>
-        :root {
-            --bg: #05070a;
-            --card: rgba(30,41,59,0.45);
-            --primary: #38bdf8;
-            --success: #10b981;
-            --danger: #f43f5e;
-            --text: #f8fafc;
-            --dim: #94a3b8;
-        }
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+<style>
 
-        body {
-            margin: 0;
-            background: var(--bg);
-            background-image: radial-gradient(circle at top right, #1e293b, #05070a);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-        }
+:root{
+--bg:#030712;
+--bg2:#07101f;
+--card:rgba(15,23,42,.85);
+--border:rgba(255,255,255,.06);
+--primary:#38bdf8;
+--success:#10b981;
+--danger:#f43f5e;
+--text:#f8fafc;
+--dim:#94a3b8;
+}
 
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 15px;
-            text-align: center;
-            background: rgba(2,6,23,0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
+*{
+box-sizing:border-box;
+-webkit-tap-highlight-color:transparent;
+}
 
-        header h1 {
-            margin: 0;
-            font-size: 0.95rem;
-            color: var(--primary);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-        }
+body{
+margin:0;
+font-family:'Inter',sans-serif;
+background:
+radial-gradient(circle at top right, rgba(56,189,248,.12), transparent 30%),
+linear-gradient(180deg,var(--bg2),var(--bg));
+color:var(--text);
+min-height:100vh;
+padding-bottom:40px;
+}
 
-        .container {
-            max-width: 550px;
-            margin: auto;
-            padding: 15px;
-        }
+header{
+position:sticky;
+top:0;
+z-index:100;
+padding:max(18px,env(safe-area-inset-top)) 18px 16px;
+background:rgba(3,7,18,.85);
+backdrop-filter:blur(18px);
+border-bottom:1px solid rgba(255,255,255,.04);
+}
 
-        .stats-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
+header h1{
+margin:0;
+text-align:center;
+font-size:1rem;
+letter-spacing:6px;
+color:var(--primary);
+font-weight:800;
+}
 
-        .stat-box {
-            background: var(--card);
-            padding: 15px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.05);
-            text-align: center;
-        }
+.container{
+max-width:560px;
+margin:auto;
+padding:18px;
+}
 
-        .stat-box small {
-            color: var(--dim);
-            font-size: 10px;
-            text-transform: uppercase;
-        }
+.hero{
+background:linear-gradient(135deg, rgba(56,189,248,.14), rgba(15,23,42,.92));
+border:1px solid rgba(56,189,248,.16);
+border-radius:22px;
+padding:18px;
+margin-bottom:18px;
+}
 
-        .stat-box div {
-            margin-top: 5px;
-            font-size: 24px;
-            font-weight: 700;
-        }
+.hero-top{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:14px;
+}
 
-        .scanner-box {
-            margin-bottom: 15px;
-            background: rgba(56,189,248,0.08);
-            border: 1px solid rgba(56,189,248,0.15);
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 12px;
-        }
+.hero-title{
+font-size:13px;
+color:var(--dim);
+letter-spacing:1px;
+text-transform:uppercase;
+}
 
-        .pair-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 20px;
-        }
+.live-pill{
+display:flex;
+align-items:center;
+gap:6px;
+background:rgba(16,185,129,.12);
+color:var(--success);
+border:1px solid rgba(16,185,129,.15);
+padding:7px 10px;
+border-radius:999px;
+font-size:11px;
+font-weight:700;
+}
 
-        .pair-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            padding: 10px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.04);
-        }
+.pulse{
+width:6px;
+height:6px;
+border-radius:50%;
+background:var(--success);
+animation:pulse 1.3s infinite;
+}
 
-        .p-name {
-            font-size: 10px;
-            font-weight: bold;
-        }
+@keyframes pulse{
+0%{opacity:1;transform:scale(1);}
+50%{opacity:.35;transform:scale(1.4);}
+100%{opacity:1;transform:scale(1);}
+}
 
-        .p-wr {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--success);
-            margin-top: 4px;
-        }
+.stats-row{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+}
 
-        .p-count {
-            font-size: 9px;
-            color: var(--dim);
-        }
+.stat-box{
+background:rgba(255,255,255,.03);
+border:1px solid var(--border);
+border-radius:18px;
+padding:18px;
+}
 
-        .live-tag {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(56,189,248,0.1);
-            border: 1px solid rgba(56,189,248,0.2);
-            padding: 10px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            font-size: 11px;
-            color: var(--primary);
-            font-weight: 600;
-        }
+.stat-box small{
+display:block;
+color:var(--dim);
+font-size:11px;
+letter-spacing:1px;
+text-transform:uppercase;
+margin-bottom:10px;
+}
 
-        .dot {
-            width: 6px;
-            height: 6px;
-            background: var(--primary);
-            border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 1.5s infinite;
-        }
+.stat-box div{
+font-size:34px;
+font-weight:800;
+}
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
+.scanner-box{
+margin-top:14px;
+background:rgba(56,189,248,.08);
+border:1px solid rgba(56,189,248,.12);
+border-radius:18px;
+padding:14px;
+font-size:13px;
+line-height:1.7;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            overflow: hidden;
-            background: var(--card);
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
+.section-title{
+margin:24px 0 14px;
+font-size:12px;
+letter-spacing:2px;
+text-transform:uppercase;
+color:var(--dim);
+font-weight:700;
+}
 
-        th {
-            text-align: left;
-            padding: 12px;
-            color: var(--dim);
-            font-size: 10px;
-            text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
+.pair-grid{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:10px;
+}
 
-        td {
-            padding: 14px 12px;
-            font-size: 13px;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-    </style>
+.pair-card{
+background:var(--card);
+border:1px solid var(--border);
+border-radius:18px;
+padding:14px 10px;
+text-align:center;
+}
+
+.p-name{
+font-size:11px;
+font-weight:700;
+margin-bottom:6px;
+}
+
+.p-wr{
+font-size:16px;
+font-weight:800;
+color:var(--success);
+}
+
+.p-count{
+font-size:10px;
+color:var(--dim);
+margin-top:4px;
+}
+
+.engine-banner{
+margin-top:20px;
+background:linear-gradient(90deg, rgba(56,189,248,.1), rgba(15,23,42,.9));
+border:1px solid rgba(56,189,248,.12);
+border-radius:18px;
+padding:16px;
+text-align:center;
+font-size:13px;
+font-weight:700;
+color:var(--primary);
+}
+
+.signals-card{
+margin-top:18px;
+background:var(--card);
+border:1px solid var(--border);
+border-radius:22px;
+overflow:hidden;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+text-align:left;
+padding:16px;
+font-size:11px;
+color:var(--dim);
+text-transform:uppercase;
+border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+td{
+padding:16px;
+font-size:13px;
+border-bottom:1px solid rgba(255,255,255,.03);
+}
+
+.empty-state{
+padding:40px 24px;
+text-align:center;
+}
+
+.empty-state h3{
+margin:0 0 10px;
+font-size:18px;
+}
+
+.empty-state p{
+margin:0;
+color:var(--dim);
+font-size:13px;
+line-height:1.6;
+}
+
+.alert-box{
+margin-top:18px;
+background:rgba(244,63,94,.08);
+border:1px solid rgba(244,63,94,.15);
+border-radius:18px;
+padding:16px;
+font-size:13px;
+line-height:1.6;
+color:#fecdd3;
+}
+
+</style>
 </head>
+
 <body>
 
 <header>
-    <h1>Quantum Signal Pro</h1>
+<h1>QUANTUM SIGNAL PRO</h1>
 </header>
 
 <div class="container">
 
-    <div class="stats-row">
-        <div class="stat-box">
-            <small>Total Signals</small>
-            <div>{{TOTAL}}</div>
-        </div>
+<div class="hero">
 
-        <div class="stat-box">
-            <small>Avg Win Rate</small>
-            <div style="color: var(--success)">{{WINRATE}}</div>
-        </div>
-    </div>
+<div class="hero-top">
+<div class="hero-title">AI Market Scanner</div>
 
-    <div class="scanner-box">
-        <strong>Last Scan:</strong> {{LAST_SCAN}}<br>
-        <strong>Status:</strong> {{SCAN_RESULT}}
-    </div>
+<div class="live-pill">
+<div class="pulse"></div>
+LIVE
+</div>
+</div>
 
-    <div class="pair-grid">
-        {{PAIR_STATS}}
-    </div>
+<div class="stats-row">
 
-    <div class="live-tag">
-        <div class="dot"></div>
-        LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
-    </div>
+<div class="stat-box">
+<small>Total Signals</small>
+<div>{{TOTAL}}</div>
+</div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Pair</th>
-                <th>Signal</th>
-                <th>Strategy</th>
-                <th>Time</th>
-            </tr>
-        </thead>
+<div class="stat-box">
+<small>Avg Win Rate</small>
+<div style="color:var(--success)">{{WINRATE}}</div>
+</div>
 
-        <tbody>
-            {{SIGNALS}}
-        </tbody>
-    </table>
+</div>
+
+<div class="scanner-box">
+<strong>Last Scan:</strong> {{LAST_SCAN}}<br>
+<strong>Status:</strong> {{SCAN_RESULT}}
+</div>
+
+</div>
+
+<div class="section-title">Pair Performance</div>
+
+<div class="pair-grid">
+{{PAIR_STATS}}
+</div>
+
+<div class="engine-banner">
+LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
+</div>
+
+<div class="section-title">Signal History</div>
+
+<div class="signals-card">
+
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Signal</th>
+<th>Strategy</th>
+<th>Time</th>
+</tr>
+</thead>
+
+<tbody>
+{{SIGNALS}}
+</tbody>
+</table>
+
+<div class="empty-state">
+<h3>No Active Signals</h3>
+
+<p>
+The engine is scanning the market every 5 minutes.
+Signals will automatically appear here once all conditions are met.
+</p>
+</div>
+
+</div>
+
+<div class="alert-box">
+<strong>Market Status:</strong><br>
+No signal setup has met confirmation conditions yet.
+The scanner remains active and monitoring live price action.
+</div>
 
 </div>
 
 </body>
-</html>
+                                   </html>
