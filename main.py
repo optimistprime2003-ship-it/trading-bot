@@ -11,35 +11,52 @@ from fastapi.responses import HTMLResponse
 
 import engine
 
-logging.basicConfig(level=logging.INFO)
-
 app = FastAPI()
 
-# --- STORAGE ---
+# =========================================================
+# DATABASE FILE
+# =========================================================
+
 DB_FILE = "data.json"
 
-# --- SCANNER SETTINGS ---
-SCAN_INTERVAL = 300  # 5 minutes
-last_scan_time = "Never"
-last_scan_result = "No scans yet"
+# =========================================================
+# SCANNER STATUS
+# =========================================================
 
+LAST_SCAN = "Waiting..."
+SCAN_RESULT = "Scanner starting..."
+
+# =========================================================
+# LOAD DATA
+# =========================================================
 
 def load_data():
+
     if os.path.exists(DB_FILE):
+
         try:
+
             with open(DB_FILE, "r") as f:
                 db = json.load(f)
 
-            stats = {"wins": 0, "total": 0, "pairs": {}}
+            stats = {
+                "wins": 0,
+                "total": 0,
+                "pairs": {}
+            }
+
             history = db.get("history", [])
 
             for s in history:
-                symbol = s.get('symbol', 'UNKNOWN')
-                strat = s.get('strat', '')
+
+                symbol = s.get("symbol", "UNKNOWN")
+
+                strat = s.get("strat", "")
 
                 stats["total"] += 1
 
                 if symbol not in stats["pairs"]:
+
                     stats["pairs"][symbol] = {
                         "wins": 0,
                         "total": 0
@@ -47,14 +64,27 @@ def load_data():
 
                 stats["pairs"][symbol]["total"] += 1
 
-                if any(x in strat for x in ["Daily", "Pin Bar", "H4", "Breakout", "5M"]):
+                if any(
+                    x in strat
+                    for x in [
+                        "Daily",
+                        "Pin Bar",
+                        "H4",
+                        "Breakout",
+                        "5M"
+                    ]
+                ):
+
                     stats["wins"] += 1
+
                     stats["pairs"][symbol]["wins"] += 1
 
             db["staffs"] = stats
+
             return db
 
         except Exception as e:
+
             logging.error(f"Load Error: {e}")
 
     return {
@@ -67,158 +97,271 @@ def load_data():
         }
     }
 
+# =========================================================
+# SAVE DATA
+# =========================================================
 
 def save_data(data):
-    try:
-        to_save = {
-            "active": data.get("active", []),
-            "history": data.get("history", [])
-        }
 
-        with open(DB_FILE, "w") as f:
-            json.dump(to_save, f, indent=2)
+    to_save = {
+        "active": data.get("active", []),
+        "history": data.get("history", [])
+    }
 
-    except Exception as e:
-        logging.error(f"Save Error: {e}")
+    with open(DB_FILE, "w") as f:
 
+        json.dump(to_save, f, indent=2)
 
-# --- AUTO SCANNER ---
+# =========================================================
+# BACKGROUND SCANNER
+# =========================================================
+
 def scanner_loop():
-    global last_scan_time, last_scan_result
+
+    global LAST_SCAN
+    global SCAN_RESULT
 
     while True:
+
         try:
-            logging.info("Running market scan...")
 
             db = load_data()
+
             new_found = engine.check_strategies()
 
             added = 0
 
-            if new_found:
-                for s in new_found:
-                    # Prevent duplicate signals
-                    exists = any(
-                        h.get('symbol') == s.get('symbol') and
-                        h.get('type') == s.get('type') and
-                        h.get('strat') == s.get('strat')
-                        for h in db["history"][:10]
-                    )
+            for s in new_found:
 
-                    if not exists:
-                        s['time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        db["history"].insert(0, s)
-                        added += 1
+                duplicate = False
 
-                db["history"] = db["history"][:50]
-                save_data(db)
+                for old in db["history"]:
 
-            last_scan_time = datetime.now().strftime("%H:%M:%S")
-            last_scan_result = f"{added} signal(s) found"
+                    if (
+                        old.get("symbol") == s.get("symbol")
+                        and old.get("type") == s.get("type")
+                        and old.get("time") == s.get("time")
+                    ):
 
-            logging.info(last_scan_result)
+                        duplicate = True
+                        break
+
+                if not duplicate:
+
+                    db["history"].insert(0, s)
+
+                    added += 1
+
+            db["history"] = db["history"][:50]
+
+            save_data(db)
+
+            LAST_SCAN = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            if added > 0:
+                SCAN_RESULT = f"{added} New Signal(s) Found"
+            else:
+                SCAN_RESULT = "No New Signals"
+
+            logging.info(SCAN_RESULT)
 
         except Exception as e:
+
             logging.error(f"Scanner Error: {e}")
-            last_scan_result = f"Scanner Error: {e}"
 
-        time.sleep(SCAN_INTERVAL)
+            SCAN_RESULT = "Scanner Error"
 
+        time.sleep(300)
 
-@app.on_event("startup")
-def startup_event():
-    thread = threading.Thread(target=scanner_loop, daemon=True)
-    thread.start()
-    logging.info("Scanner thread started")
+# =========================================================
+# START BACKGROUND THREAD
+# =========================================================
 
+threading.Thread(
+    target=scanner_loop,
+    daemon=True
+).start()
+
+# =========================================================
+# DASHBOARD
+# =========================================================
 
 @app.get("/", response_class=HTMLResponse)
+
 def dashboard():
+
     db = load_data()
 
     try:
+
         with open("index.html", "r") as f:
             template = f.read()
 
     except:
-        return "Error: index.html not found."
+
+        return "index.html not found"
+
+    # =====================================================
+    # SIGNAL ROWS
+    # =====================================================
 
     rows = ""
 
     for s in db.get("history", [])[:15]:
-        color = "#10b981" if s.get('type') == "BUY" else "#f43f5e"
-        signal_time = s.get('time', '--')
+
+        color = (
+            "#10b981"
+            if s.get("type") == "BUY"
+            else "#f43f5e"
+        )
 
         rows += f"""
-        <tr>
-            <td>{s['symbol']}</td>
-            <td style='color:{color}; font-weight:700;'>
-                {s['type']}
-            </td>
-            <td>{s['strat']}</td>
-            <td>{signal_time}</td>
-        </tr>
-        """
+<tr>
+<td>{s.get('symbol', '-')}</td>
+
+<td style='color:{color}; font-weight:700;'>
+{s.get('type', '-')}
+</td>
+
+<td>{s.get('entry', '-')}</td>
+
+<td>{s.get('sl', '-')}</td>
+
+<td>{s.get('tp', '-')}</td>
+
+<td>{s.get('rr', '-')}</td>
+</tr>
+"""
+
+    # =====================================================
+    # EMPTY STATE FIX
+    # =====================================================
+
+    if rows == "":
+
+        rows = """
+<tr>
+<td colspan='6' style='text-align:center; padding:40px;'>
+
+<div style='font-size:18px; font-weight:700; margin-bottom:10px;'>
+No Active Signals
+</div>
+
+<div style='font-size:13px; color:#94a3b8; line-height:1.6;'>
+The engine is scanning the market every 5 minutes.
+Signals will appear automatically when conditions are met.
+</div>
+
+</td>
+</tr>
+"""
+
+    # =====================================================
+    # PAIR STATS
+    # =====================================================
 
     pair_html = ""
+
     staffs = db["staffs"]
 
     for pair, p_data in staffs["pairs"].items():
-        wr = (p_data['wins'] / p_data['total'] * 100) if p_data['total'] > 0 else 0
+
+        wr = (
+            (p_data['wins'] / p_data['total']) * 100
+            if p_data['total'] > 0
+            else 0
+        )
 
         pair_html += f"""
-        <div class="pair-card">
-            <div class="p-name">{pair}</div>
-            <div class="p-wr">{wr:.1f}%</div>
-            <div class="p-count">{p_data['total']} Signals</div>
-        </div>
-        """
+<div class="pair-card">
 
-    global_wr = (staffs['wins'] / staffs['total'] * 100) if staffs['total'] > 0 else 0
+<div class="p-name">{pair}</div>
 
-    html = template.replace("{{TOTAL}}", str(staffs['total']))
-    html = html.replace("{{WINRATE}}", f"{global_wr:.1f}%")
-    html = html.replace("{{PAIR_STATS}}", pair_html or "<p>No history yet</p>")
-    html = html.replace("{{SIGNALS}}", rows or "<tr><td colspan='4'>No Signals Yet</td></tr>")
-    html = html.replace("{{LAST_SCAN}}", last_scan_time)
-    html = html.replace("{{SCAN_RESULT}}", last_scan_result)
+<div class="p-wr">{wr:.1f}%</div>
+
+<div class="p-count">
+{p_data['total']} Signals
+</div>
+
+</div>
+"""
+
+    global_wr = (
+        (staffs['wins'] / staffs['total']) * 100
+        if staffs['total'] > 0
+        else 0
+    )
+
+    # =====================================================
+    # HTML REPLACEMENTS
+    # =====================================================
+
+    html = template.replace(
+        "{{TOTAL}}",
+        str(staffs['total'])
+    )
+
+    html = html.replace(
+        "{{WINRATE}}",
+        f"{global_wr:.1f}%"
+    )
+
+    html = html.replace(
+        "{{PAIR_STATS}}",
+        pair_html
+    )
+
+    html = html.replace(
+        "{{SIGNALS}}",
+        rows
+    )
+
+    html = html.replace(
+        "{{LAST_SCAN}}",
+        LAST_SCAN
+    )
+
+    html = html.replace(
+        "{{SCAN_RESULT}}",
+        SCAN_RESULT
+    )
 
     return html
 
+# =========================================================
+# MANUAL SCAN
+# =========================================================
 
 @app.get("/scan")
-def manual_scan():
-    try:
-        db = load_data()
-        new_found = engine.check_strategies()
 
-        if new_found:
-            for s in new_found:
-                db["history"].insert(0, s)
+def run_scan():
 
-            db["history"] = db["history"][:50]
-            save_data(db)
-
-        return {
-            "status": "complete",
-            "signals": new_found
-        }
-
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-
-
-@app.get("/health")
-def health():
     return {
-        "status": "running",
-        "last_scan": last_scan_time,
-        "result": last_scan_result
+        "status": "scanner active"
     }
 
+# =========================================================
+# HEALTH CHECK
+# =========================================================
+
+@app.get("/health")
+
+def health():
+
+    return {
+        "status": "running",
+        "last_scan": LAST_SCAN,
+        "scan_result": SCAN_RESULT
+    }
+
+# =========================================================
+# RUN SERVER
+# =========================================================
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0",)
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=10000
+        )
