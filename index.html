@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -58,7 +60,7 @@ header h1{
     border:1px solid rgba(56,189,248,0.15);
     border-radius:30px;
     padding:30px;
-    margin-bottom:40px;
+    margin-bottom:35px;
     box-shadow:0 10px 40px rgba(0,0,0,0.35);
 }
 
@@ -149,8 +151,52 @@ header h1{
     color:#e2e8f0;
 }
 
+.nav-tabs{
+    display:flex;
+    gap:12px;
+    margin-bottom:25px;
+}
+
+.tab-btn{
+    flex:1;
+    background:#0f172a;
+    border:1px solid rgba(255,255,255,0.05);
+    color:#94a3b8;
+    padding:18px;
+    border-radius:18px;
+    font-weight:700;
+    cursor:pointer;
+    transition:.3s;
+    font-size:15px;
+}
+
+.tab-btn.active{
+    background:#38bdf8;
+    color:#fff;
+}
+
+.tab-content{
+    display:none;
+}
+
+.active-tab{
+    display:block;
+}
+
+.engine-box{
+    margin-bottom:25px;
+    background:linear-gradient(90deg,#0b2942,#0f172a);
+    border:1px solid rgba(56,189,248,0.18);
+    color:var(--primary);
+    text-align:center;
+    padding:28px;
+    border-radius:26px;
+    font-size:18px;
+    font-weight:800;
+}
+
 .section-title{
-    margin:45px 0 22px;
+    margin:35px 0 22px;
     color:#a5b4fc;
     letter-spacing:5px;
     font-size:15px;
@@ -189,18 +235,6 @@ header h1{
     font-size:16px;
 }
 
-.engine-box{
-    margin:40px 0;
-    background:linear-gradient(90deg,#0b2942,#0f172a);
-    border:1px solid rgba(56,189,248,0.18);
-    color:var(--primary);
-    text-align:center;
-    padding:28px;
-    border-radius:26px;
-    font-size:18px;
-    font-weight:800;
-}
-
 .table-wrap{
     overflow:auto;
     border-radius:28px;
@@ -230,29 +264,6 @@ td{
     border-bottom:1px solid rgba(255,255,255,0.04);
 }
 
-.buy{
-    color:var(--green);
-    font-weight:800;
-}
-
-.sell{
-    color:var(--red);
-    font-weight:800;
-}
-
-.active-status{
-    color:var(--primary);
-    font-weight:800;
-}
-
-.empty{
-    padding:60px 20px;
-    text-align:center;
-    color:#94a3b8;
-    font-size:20px;
-    line-height:1.7;
-}
-
 .footer-space{
     height:80px;
 }
@@ -278,6 +289,7 @@ td{
 }
 
 </style>
+
 </head>
 
 <body>
@@ -291,12 +303,14 @@ td{
     <div class="top-card">
 
         <div class="top-head">
+
             <h2>AI MARKET SCANNER</h2>
 
             <div class="live">
                 <div class="live-dot"></div>
                 LIVE
             </div>
+
         </div>
 
         <div class="stats">
@@ -307,81 +321,111 @@ td{
             </div>
 
             <div class="stat">
-                <small>AVG WIN RATE</small>
+                <small>WIN RATE</small>
                 <h1 class="green">{{WINRATE}}</h1>
             </div>
 
         </div>
 
         <div class="scan-box">
-            <h3>Last Scan: {{LAST_SCAN}}</h3>
-            <p>Status: Monitoring market for new setups...</p>
+            <h3>Monitoring Markets...</h3>
+            <p>Last Scan: {{LAST_SCAN}}</p>
         </div>
 
     </div>
 
-    <div class="section-title">
-        PAIR PERFORMANCE
+    <div class="nav-tabs">
+
+        <button class="tab-btn active" onclick="showTab('active', this)">
+            ACTIVE
+        </button>
+
+        <button class="tab-btn" onclick="showTab('history', this)">
+            HISTORY
+        </button>
+
+        <button class="tab-btn" onclick="showTab('stats', this)">
+            STATS
+        </button>
+
     </div>
 
-    <div class="pair-grid">
-        {{PAIR_STATS}}
+    <!-- ACTIVE TAB -->
+
+    <div id="active" class="tab-content active-tab">
+
+        <div class="engine-box">
+            LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
+        </div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>PAIR</th>
+                        <th>SIGNAL</th>
+                        <th>ENTRY</th>
+                        <th>SL</th>
+                        <th>TP</th>
+                        <th>RR</th>
+                        <th>STATUS</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {{ACTIVE_SIGNALS}}
+                </tbody>
+
+            </table>
+
+        </div>
+
     </div>
 
-    <div class="engine-box">
-        LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY
+    <!-- HISTORY TAB -->
+
+    <div id="history" class="tab-content">
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>PAIR</th>
+                        <th>SIGNAL</th>
+                        <th>ENTRY</th>
+                        <th>SL</th>
+                        <th>TP</th>
+                        <th>RR</th>
+                        <th>RESULT</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {{SIGNALS}}
+                </tbody>
+
+            </table>
+
+        </div>
+
     </div>
 
-    <div class="section-title">
-        ACTIVE SIGNALS
-    </div>
+    <!-- STATS TAB -->
 
-    <div class="table-wrap">
-        <table>
+    <div id="stats" class="tab-content">
 
-            <thead>
-                <tr>
-                    <th>PAIR</th>
-                    <th>SIGNAL</th>
-                    <th>ENTRY</th>
-                    <th>SL</th>
-                    <th>TP</th>
-                    <th>RR</th>
-                    <th>STATUS</th>
-                </tr>
-            </thead>
+        <div class="section-title">
+            PAIR PERFORMANCE
+        </div>
 
-            <tbody>
-                {{ACTIVE_SIGNALS}}
-            </tbody>
+        <div class="pair-grid">
+            {{PAIR_STATS}}
+        </div>
 
-        </table>
-    </div>
-
-    <div class="section-title">
-        SIGNAL HISTORY
-    </div>
-
-    <div class="table-wrap">
-        <table>
-
-            <thead>
-                <tr>
-                    <th>PAIR</th>
-                    <th>SIGNAL</th>
-                    <th>ENTRY</th>
-                    <th>SL</th>
-                    <th>TP</th>
-                    <th>RR</th>
-                    <th>RESULT</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {{SIGNALS}}
-            </tbody>
-
-        </table>
     </div>
 
     <div class="footer-space"></div>
@@ -390,36 +434,50 @@ td{
 
 <script>
 
-let lastSignalCount = 0;
+function showTab(tabId, button){
 
-async function checkSignals(){
+    document.querySelectorAll('.tab-content')
+    .forEach(tab=>{
+        tab.classList.remove('active-tab');
+    });
 
-    try{
+    document.querySelectorAll('.tab-btn')
+    .forEach(btn=>{
+        btn.classList.remove('active');
+    });
 
-        const response = await fetch('/scan');
-        const data = await response.json();
+    document.getElementById(tabId)
+    .classList.add('active-tab');
 
-        if(data.new > 0){
-
-            if(navigator.vibrate){
-                navigator.vibrate([300,150,300]);
-            }
-
-            const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-            audio.play();
-
-            location.reload();
-        }
-
-    }catch(err){
-        console.log(err);
-    }
-
+    button.classList.add('active');
 }
 
-setInterval(checkSignals, 30000);
+let previousSignals =
+document.querySelectorAll("tbody tr").length;
+
+setInterval(() => {
+
+    let currentSignals =
+    document.querySelectorAll("tbody tr").length;
+
+    if(currentSignals > previousSignals){
+
+        if(navigator.vibrate){
+            navigator.vibrate([300,150,300]);
+        }
+
+        const audio = new Audio(
+        "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+        );
+
+        audio.play();
+
+        previousSignals = currentSignals;
+    }
+
+}, 30000);
 
 </script>
 
 </body>
-          </html>
+    </html>
