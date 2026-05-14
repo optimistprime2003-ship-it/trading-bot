@@ -10,7 +10,7 @@ from datetime import datetime
 # =========================================================
 
 PINBAR_PAIRS = ["EUR/USD", "AUD/USD", "USD/JPY", "GBP/USD"]
-RANGE_PAIRS = ["BTC/USD", "EUR/USD", "GBP/USD"]
+RANGE_PAIRS = ["BTC/USD", "ETH/USD"]
 
 NY_SESSION_START = "08:00:00"
 
