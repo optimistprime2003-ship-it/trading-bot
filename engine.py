@@ -20,7 +20,7 @@ NY_SESSION_START = "08:00:00"
 
 keys = [
     os.getenv(f"TD_API_KEY_{i}")
-    for i in range(1, 4)
+    for i in range(1, 5)
     if os.getenv(f"TD_API_KEY_{i}")
 ]
 
