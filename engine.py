@@ -194,7 +194,7 @@ def check_strategies():
                 })
 
     # =====================================================
-    # 2. H4 RANGE + 5M FAKE BREAKOUT RE-ENTRY STRATEGY
+    # 2. H4 RANGE + 5M HYBRID FAKE BREAKOUT STRATEGY
     # =====================================================
 
     for symbol in RANGE_PAIRS:
@@ -248,7 +248,9 @@ def check_strategies():
 
                     "low": target['low'],
 
-                    "breakout_state": None
+                    "breakout_state": None,
+
+                    "breakout_index": None
                 }
 
                 logging.info(
@@ -270,6 +272,11 @@ def check_strategies():
                 None
             )
 
+            breakout_index = daily_ranges[symbol].get(
+                "breakout_index",
+                None
+            )
+
             # =============================================
             # CHECK RECENT 5M CANDLES
             # =============================================
@@ -281,17 +288,16 @@ def check_strategies():
                 candle = recent_candles.iloc[i]
 
                 # =========================================
-                # VALID BODY BREAKOUT DETECTION
+                # HYBRID BODY BREAKOUT DETECTION
+                # SMALL FAKEOUTS ACCEPTED
                 # =========================================
 
                 bullish_body_break = (
                     candle['close'] > range_high
-                    and candle['open'] > range_high
                 )
 
                 bearish_body_break = (
                     candle['close'] < range_low
-                    and candle['open'] < range_low
                 )
 
                 # =========================================
@@ -320,6 +326,10 @@ def check_strategies():
                         "breakout_state"
                     ] = breakout_state
 
+                    daily_ranges[symbol][
+                        "breakout_index"
+                    ] = i
+
                     continue
 
                 elif bearish_body_break:
@@ -330,20 +340,32 @@ def check_strategies():
                         "breakout_state"
                     ] = breakout_state
 
+                    daily_ranges[symbol][
+                        "breakout_index"
+                    ] = i
+
                     continue
 
-                # Ignore wick-only breakouts
+                # =========================================
+                # IGNORE WICK-ONLY BREAKOUTS
+                # =========================================
+
                 elif wick_break_high or wick_break_low:
 
                     continue
 
                 # =========================================
-                # VALID RE-ENTRY CONDITIONS
+                # INSTANT RECLAIM ONLY
+                # MUST RECLAIM NEXT CANDLE
                 # =========================================
 
                 sell_reentry = (
 
                     breakout_state == "outside_above"
+
+                    and breakout_index is not None
+
+                    and i == breakout_index + 1
 
                     and candle['close'] < range_high
                 )
@@ -351,6 +373,10 @@ def check_strategies():
                 buy_reentry = (
 
                     breakout_state == "outside_below"
+
+                    and breakout_index is not None
+
+                    and i == breakout_index + 1
 
                     and candle['close'] > range_low
                 )
@@ -383,13 +409,17 @@ def check_strategies():
 
                         "rr": "1:2",
 
-                        "strat": "Fake Breakout Re-entry",
+                        "strat": "Hybrid Fake Breakout",
 
                         "time": candle['datetime']
                     })
 
                     daily_ranges[symbol][
                         "breakout_state"
+                    ] = None
+
+                    daily_ranges[symbol][
+                        "breakout_index"
                     ] = None
 
                     break
@@ -422,13 +452,17 @@ def check_strategies():
 
                         "rr": "1:2",
 
-                        "strat": "Fake Breakout Re-entry",
+                        "strat": "Hybrid Fake Breakout",
 
                         "time": candle['datetime']
                     })
 
                     daily_ranges[symbol][
                         "breakout_state"
+                    ] = None
+
+                    daily_ranges[symbol][
+                        "breakout_index"
                     ] = None
 
                     break
@@ -438,3 +472,4 @@ def check_strategies():
             logging.error(f"{symbol} Strategy Error: {e}")
 
     return signals
+                
