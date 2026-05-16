@@ -191,219 +191,276 @@ def check_strategies():
                     "strat": "1D Pin Bar",
 
                     "time": last['datetime']
+                }) 
+# =====================================================
+# H4 RANGE + 5M ENTRY STRATEGY (UPGRADED VERSION)
+# =====================================================
+
+for symbol in RANGE_PAIRS:
+
+    try:
+
+        # =============================================
+        # FETCH DATA
+        # =============================================
+
+        df_4h = get_data(symbol, "4h", outputsize=20)
+
+        df_5m = get_data(symbol, "5min", outputsize=100)
+
+        if df_4h is None or df_5m is None:
+            continue
+
+        if df_4h.empty or df_5m.empty:
+            continue
+
+        # =============================================
+        # TODAY DATE
+        # =============================================
+
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # =============================================
+        # CREATE DAILY RANGE
+        # =============================================
+
+        if symbol not in daily_ranges:
+
+            session_data = df_4h[
+                df_4h['datetime'].str.contains(NY_SESSION_START)
+            ]
+
+            if session_data.empty:
+                logging.warning(f"No NY candle found for {symbol}")
+                continue
+
+            target = session_data.iloc[-1]
+
+            daily_ranges[symbol] = {
+
+                "date": today,
+
+                "high": target['high'],
+
+                "low": target['low']
+            }
+
+            logging.info(
+                f"{symbol} Range Set | "
+                f"HIGH={target['high']} "
+                f"LOW={target['low']}"
+            )
+
+        # =============================================
+        # RESET RANGE EACH NEW DAY
+        # =============================================
+
+        elif daily_ranges[symbol]["date"] != today:
+
+            session_data = df_4h[
+                df_4h['datetime'].str.contains(NY_SESSION_START)
+            ]
+
+            if session_data.empty:
+                continue
+
+            target = session_data.iloc[-1]
+
+            daily_ranges[symbol] = {
+
+                "date": today,
+
+                "high": target['high'],
+
+                "low": target['low']
+            }
+
+            logging.info(
+                f"{symbol} New Daily Range | "
+                f"HIGH={target['high']} "
+                f"LOW={target['low']}"
+            )
+
+        # =============================================
+        # FIXED DAILY RANGE
+        # =============================================
+
+        r_high = daily_ranges[symbol]["high"]
+
+        r_low = daily_ranges[symbol]["low"]
+
+        # =============================================
+        # CHECK MULTIPLE 5M CANDLES
+        # =============================================
+
+        recent_candles = df_5m.tail(20)
+
+        tolerance_high = r_high * 0.0015
+
+        tolerance_low = r_low * 0.0015
+
+        breakout_state = None
+
+        for i in range(1, len(recent_candles)):
+
+            prev = recent_candles.iloc[i - 1]
+
+            curr = recent_candles.iloc[i]
+
+            # =========================================
+            # VALID BODY BREAKOUTS ONLY
+            # =========================================
+
+            bullish_body_break = (
+                prev['open'] > r_high and
+                prev['close'] > r_high
+            )
+
+            bearish_body_break = (
+                prev['open'] < r_low and
+                prev['close'] < r_low
+            )
+
+            # =========================================
+            # IGNORE WICK-ONLY BREAKOUTS
+            # =========================================
+
+            wick_break_high = (
+                prev['high'] > r_high and
+                prev['close'] <= r_high
+            )
+
+            wick_break_low = (
+                prev['low'] < r_low and
+                prev['close'] >= r_low
+            )
+
+            if wick_break_high or wick_break_low:
+                continue
+
+            # =========================================
+            # STORE BREAKOUT STATE
+            # =========================================
+
+            if bullish_body_break:
+                breakout_state = "outside_above"
+
+            elif bearish_body_break:
+                breakout_state = "outside_below"
+
+            # =========================================
+            # SELL RE-ENTRY
+            # =========================================
+
+            reclaim_sell = (
+                breakout_state == "outside_above"
+                and curr['close'] < r_high
+            )
+
+            if reclaim_sell:
+
+                entry = curr['close']
+
+                structural_high = max(
+                    prev['high'],
+                    curr['high']
+                )
+
+                sl = structural_high + (entry * 0.0005)
+
+                risk = abs(sl - entry)
+
+                tp = entry - (risk * 2)
+
+                signals.insert(0, {
+
+                    "symbol": symbol,
+
+                    "type": "SELL",
+
+                    "entry": round(entry, 2),
+
+                    "sl": round(sl, 2),
+
+                    "tp": round(tp, 2),
+
+                    "rr": "1:2",
+
+                    "strat": "H4 NY Fakeout Re-entry",
+
+                    "status": "ACTIVE",
+
+                    "new": True,
+
+                    "time": curr['datetime'],
+
+                    "timestamp": datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
                 })
 
-    # =====================================================
-    # 2. H4 RANGE + 5M ENTRY STRATEGY
-    # =====================================================
+                breakout_state = None
 
-    for symbol in RANGE_PAIRS:
+                break
 
-        try:
+            # =========================================
+            # BUY RE-ENTRY
+            # =========================================
 
-            # =============================================
-            # FETCH DATA
-            # =============================================
+            reclaim_buy = (
+                breakout_state == "outside_below"
+                and curr['close'] > r_low
+            )
 
-            df_4h = get_data(symbol, "4h", outputsize=20)
+            if reclaim_buy:
 
-            df_5m = get_data(symbol, "5min", outputsize=100)
+                entry = curr['close']
 
-            if df_4h is None or df_5m is None:
-                continue
-
-            if df_4h.empty or df_5m.empty:
-                continue
-
-            # =============================================
-            # TODAY DATE
-            # =============================================
-
-            today = datetime.now().strftime("%Y-%m-%d")
-
-            # =============================================
-            # CREATE DAILY RANGE
-            # =============================================
-
-            if symbol not in daily_ranges:
-
-                session_data = df_4h[
-                    df_4h['datetime'].str.contains(NY_SESSION_START)
-                ]
-
-                if session_data.empty:
-                    logging.warning(f"No NY candle found for {symbol}")
-                    continue
-
-                target = session_data.iloc[-1]
-
-                daily_ranges[symbol] = {
-
-                    "date": today,
-
-                    "high": target['high'],
-
-                    "low": target['low']
-                }
-
-                logging.info(
-                    f"{symbol} Range Set | "
-                    f"HIGH={target['high']} "
-                    f"LOW={target['low']}"
+                structural_low = min(
+                    prev['low'],
+                    curr['low']
                 )
 
-            # =============================================
-            # RESET RANGE EACH NEW DAY
-            # =============================================
+                sl = structural_low - (entry * 0.0005)
 
-            elif daily_ranges[symbol]["date"] != today:
+                risk = abs(entry - sl)
 
-                session_data = df_4h[
-                    df_4h['datetime'].str.contains(NY_SESSION_START)
-                ]
+                tp = entry + (risk * 2)
 
-                if session_data.empty:
-                    continue
+                signals.insert(0, {
 
-                target = session_data.iloc[-1]
+                    "symbol": symbol,
 
-                daily_ranges[symbol] = {
+                    "type": "BUY",
 
-                    "date": today,
+                    "entry": round(entry, 2),
 
-                    "high": target['high'],
+                    "sl": round(sl, 2),
 
-                    "low": target['low']
-                }
+                    "tp": round(tp, 2),
 
-                logging.info(
-                    f"{symbol} New Daily Range | "
-                    f"HIGH={target['high']} "
-                    f"LOW={target['low']}"
-                )
+                    "rr": "1:2",
 
-            # =============================================
-            # FIXED DAILY RANGE
-            # =============================================
+                    "strat": "H4 NY Fakeout Re-entry",
 
-            r_high = daily_ranges[symbol]["high"]
+                    "status": "ACTIVE",
 
-            r_low = daily_ranges[symbol]["low"]
+                    "new": True,
 
-            # =============================================
-            # CHECK MULTIPLE 5M CANDLES
-            # =============================================
+                    "time": curr['datetime'],
 
-            recent_candles = df_5m.tail(20)
-
-            tolerance_high = r_high * 0.0015
-
-            tolerance_low = r_low * 0.0015
-
-            for i in range(1, len(recent_candles)):
-
-                prev = recent_candles.iloc[i - 1]
-
-                curr = recent_candles.iloc[i]
-
-                # =========================================
-                # BUY FAKEOUT
-                # =========================================
-
-                breakout_low = (
-                    prev['low'] < (r_low + tolerance_low)
-                )
-
-                reclaim_buy = (
-                    curr['close'] >= (r_low - tolerance_low)
-                )
-
-                if breakout_low and reclaim_buy:
-
-                    entry = curr['close']
-
-                    structural_low = min(
-                        prev['low'],
-                        curr['low']
+                    "timestamp": datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
                     )
+                })
 
-                    sl = structural_low - (entry * 0.0005)
+                breakout_state = None
 
-                    risk = abs(entry - sl)
+                break
 
-                    tp = entry + (risk * 2)
+    except Exception as e:
 
-                    signals.append({
+        logging.error(f"{symbol} Strategy Error: {e}")
 
-                        "symbol": symbol,
-
-                        "type": "BUY",
-
-                        "entry": round(entry, 2),
-
-                        "sl": round(sl, 2),
-
-                        "tp": round(tp, 2),
-
-                        "rr": "1:2",
-
-                        "strat": "H4 NY Fakeout",
-
-                        "time": curr['datetime']
-                    })
-
-                    break
-
-                # =========================================
-                # SELL FAKEOUT
-                # =========================================
-
-                breakout_high = (
-                    prev['high'] > (r_high - tolerance_high)
-                )
-
-                reclaim_sell = (
-                    curr['close'] <= (r_high + tolerance_high)
-                )
-
-                if breakout_high and reclaim_sell:
-
-                    entry = curr['close']
-
-                    structural_high = max(
-                        prev['high'],
-                        curr['high']
-                    )
-
-                    sl = structural_high + (entry * 0.0005)
-
-                    risk = abs(sl - entry)
-
-                    tp = entry - (risk * 2)
-
-                    signals.append({
-
-                        "symbol": symbol,
-
-                        "type": "SELL",
-
-                        "entry": round(entry, 2),
-
-                        "sl": round(sl, 2),
-
-                        "tp": round(tp, 2),
-
-                        "rr": "1:2",
-
-                        "strat": "H4 NY Fakeout",
-
-                        "time": curr['datetime']
-                    })
-
-                    break
-
-        except Exception as e:
-
-            logging.error(f"{symbol} Strategy Error: {e}")
-
-    return signals
+return signals
+                
