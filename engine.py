@@ -56,7 +56,39 @@ def get_data(symbol, interval, outputsize=50):
         if 'values' not in res:
             logging.error(f"No values returned for {symbol} {interval}")
             return None
- # =========================================================
+
+        df = pd.DataFrame(res['values'])
+
+        df[['open', 'high', 'low', 'close']] = (
+            df[['open', 'high', 'low', 'close']].astype(float)
+        )
+
+        df = df.iloc[::-1].reset_index(drop=True)
+
+        return df
+
+    except Exception as e:
+
+        logging.error(f"Data Error: {e}")
+
+        return None
+
+# =========================================================
+# PIN BAR DETECTION
+# =========================================================
+
+def is_pin_bar(open_p, high, low, close):
+
+    body = abs(open_p - close)
+
+    total_range = high - low
+
+    if total_range == 0:
+        return False
+
+    return (body / total_range) <= 0.30
+
+# =========================================================
 # MAIN STRATEGY ENGINE
 # =========================================================
 
@@ -406,5 +438,3 @@ def check_strategies():
             logging.error(f"{symbol} Strategy Error: {e}")
 
     return signals
-
-                                            
