@@ -74,6 +74,72 @@ def save_data(data):
         json.dump(to_save, f, indent=2)
 
 
+def evaluate_active_trades(db):
+    """
+    UPGRADE: Automatically monitors open trades against live market data.
+    Checks if High or Low points hit your defined TP or SL targets.
+    """
+    still_active = []
+    
+    for trade in db.get("active", []):
+        symbol = trade.get("symbol")
+        
+        # Determine timeframe interval dynamically based on strategy profile
+        interval = "5min" if trade.get("strat") == "Hybrid Fake Breakout" else "1day"
+        
+        try:
+            # Request the latest data row using your existing engine's data fetcher
+            df = engine.get_data(symbol, interval, outputsize=2)
+            if df is None or df.empty:
+                still_active.append(trade)
+                continue
+            
+            last_candle = df.iloc[-1]
+            high = float(last_candle['high'])
+            low = float(last_candle['low'])
+            
+            tp = float(trade.get("tp", 0))
+            sl = float(trade.get("sl", 0))
+            trade_type = trade.get("type")
+            
+            was_hit = False
+            result = None
+
+            # Process price execution states for BUY orders
+            if trade_type == "BUY":
+                if high >= tp:
+                    was_hit = True
+                    result = "WIN"
+                elif low <= sl:
+                    was_hit = True
+                    result = "LOSS"
+                    
+            # Process price execution states for SELL orders
+            elif trade_type == "SELL":
+                if low <= tp:
+                    was_hit = True
+                    result = "WIN"
+                elif high >= sl:
+                    was_hit = True
+                    result = "LOSS"
+
+            if was_hit:
+                trade["result"] = result
+                trade["closed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                # Prepend to history so freshest closures sit at the top of the frontend
+                db["history"].insert(0, trade)
+                logging.info(f"Trade Closed: {symbol} hit {result}")
+            else:
+                still_active.append(trade)
+                
+        except Exception as e:
+            logging.error(f"Error checking active trade {symbol}: {e}")
+            still_active.append(trade)
+
+    db["active"] = still_active
+    return db
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
     db = load_data()
@@ -152,6 +218,9 @@ def dashboard():
 @app.get("/scan")
 def run_scanner():
     db = load_data()
+
+    # UPGRADE: Process current positions for exits before computing new strategy logic
+    db = evaluate_active_trades(db)
 
     new_found = engine.check_strategies()
 
