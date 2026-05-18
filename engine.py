@@ -355,9 +355,11 @@ def check_strategies():
                     continue
 
                 # =========================================
-                # INSTANT RECLAIM ONLY
-                # MUST RECLAIM NEXT CANDLE
+                # FAST RECLAIM LOGIC
+                # ALLOWS QUICK BACK-AND-FORTH
                 # =========================================
+
+                max_reclaim_candles = 4
 
                 sell_reentry = (
 
@@ -365,7 +367,7 @@ def check_strategies():
 
                     and breakout_index is not None
 
-                    and i == breakout_index + 1
+                    and (i - breakout_index) <= max_reclaim_candles
 
                     and candle['close'] < range_high
                 )
@@ -376,7 +378,7 @@ def check_strategies():
 
                     and breakout_index is not None
 
-                    and i == breakout_index + 1
+                    and (i - breakout_index) <= max_reclaim_candles
 
                     and candle['close'] > range_low
                 )
@@ -472,89 +474,3 @@ def check_strategies():
             logging.error(f"{symbol} Strategy Error: {e}")
 
     return signals
-    # =========================================================
-# GLOBAL STORAGE (Keeps track of trades across cycles)
-# =========================================================
-active_trades = []
-trade_history = []
-
-def monitor_active_trades():
-    """
-    Loops through all open trades, fetches fresh data, checks if TP/SL 
-    was hit, and updates the global trade_history.
-    """
-    global active_trades, trade_history
-    remaining_trades = []
-
-    for trade in active_trades:
-        symbol = trade["symbol"]
-        # Determine interval based on strategy type
-        interval = "5min" if trade["strat"] == "Hybrid Fake Breakout" else "1day"
-        
-        # Fetch the most recent data row
-        df = get_data(symbol, interval, outputsize=2)
-        if df is None or df.empty:
-            remaining_trades.append(trade)
-            continue
-            
-        last_candle = df.iloc[-1]
-        current_close = last_candle['close']
-        high = last_candle['high']
-        low = last_candle['low']
-
-        was_hit = False
-        result_status = "PENDING"
-
-        # Check BUY trade conditions
-        if trade["type"] == "BUY":
-            if high >= trade["tp"]:
-                was_hit = True
-                result_status = "WIN"
-            elif low <= trade["sl"]:
-                was_hit = True
-                result_status = "LOSS"
-
-        # Check SELL trade conditions
-        elif trade["type"] == "SELL":
-            if low <= trade["tp"]:
-                was_hit = True
-                result_status = "WIN"
-            elif high >= trade["sl"]:
-                was_hit = True
-                result_status = "LOSS"
-
-        if was_hit:
-            # Move to history with final details
-            trade["result"] = result_status
-            trade["close_time"] = last_candle['datetime']
-            trade_history.append(trade)
-        else:
-            # Still open, keep tracking it
-            remaining_trades.append(trade)
-
-    active_trades = remaining_trades
-
-# =========================================================
-# METRICS CALCULATOR
-# =========================================================
-def calculate_metrics():
-    """
-    Computes real-time stats from the trade_history list for your frontend.
-    """
-    global trade_history
-    
-    total_signals = len(trade_history) + len(active_trades)
-    closed_trades = len(trade_history)
-    
-    if closed_trades == 0:
-        win_rate = "0%"
-    else:
-        wins = sum(1 for t in trade_history if t["result"] == "WIN")
-        win_rate = f"{round((wins / closed_trades) * 100, 1)}%"
-        
-    return {
-        "TOTAL": total_signals,
-        "WINRATE": win_rate,
-        "LAST_SCAN": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-                
