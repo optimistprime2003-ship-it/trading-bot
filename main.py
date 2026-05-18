@@ -2,23 +2,12 @@ import os
 import json
 import logging
 import uvicorn
-
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-
 import engine
-
 from datetime import datetime
 
-# =========================================================
-# FASTAPI
-# =========================================================
-
 app = FastAPI()
-
-# =========================================================
-# DATABASE FILE
-# =========================================================
 
 DB_FILE = "data.json"
 
@@ -33,12 +22,7 @@ def load_data():
         try:
 
             with open(DB_FILE, "r") as f:
-
                 db = json.load(f)
-
-            # =============================================
-            # SAFETY DEFAULTS
-            # =============================================
 
             if "active" not in db:
                 db["active"] = []
@@ -46,110 +30,146 @@ def load_data():
             if "history" not in db:
                 db["history"] = []
 
-            # =============================================
-            # GLOBAL STATS
-            # =============================================
+            # =====================================================
+            # ADVANCED STATS ENGINE
+            # =====================================================
 
             stats = {
 
                 "wins": 0,
-
                 "losses": 0,
-
                 "total": 0,
 
-                "rr_total": 0,
+                "rr_won": 0.0,
+                "rr_lost": 0.0,
+                "net_rr": 0.0,
 
-                "pairs": {}
+                "profit_factor": 0.0,
+                "expectancy": 0.0,
+
+                "pairs": {},
+                "strategies": {}
             }
 
-            # =============================================
+            # =====================================================
             # PROCESS HISTORY
-            # =============================================
+            # =====================================================
 
             for s in db.get("history", []):
 
-                symbol = s.get(
-                    "symbol",
-                    "UNKNOWN"
-                )
+                symbol = s.get("symbol", "UNKNOWN")
 
-                result = s.get(
-                    "result",
-                    "LOSS"
-                )
+                strategy = s.get("strat", "UNKNOWN")
 
-                rr = s.get(
-                    "rr",
-                    "1:1"
-                )
+                rr_text = str(s.get("rr", "1:1"))
 
                 stats["total"] += 1
 
-                # =========================================
-                # PAIR STORAGE
-                # =========================================
+                # =================================================
+                # EXTRACT RR VALUE
+                # =================================================
+
+                try:
+
+                    rr_value = float(rr_text.split(":")[1])
+
+                except:
+
+                    rr_value = 1.0
+
+                # =================================================
+                # PAIR STATS
+                # =================================================
 
                 if symbol not in stats["pairs"]:
 
                     stats["pairs"][symbol] = {
 
                         "wins": 0,
-
                         "losses": 0,
-
                         "total": 0,
-
-                        "rr_total": 0
+                        "rr": 0
                     }
 
                 stats["pairs"][symbol]["total"] += 1
 
-                # =========================================
-                # RR EXTRACTION
-                # =========================================
+                # =================================================
+                # STRATEGY STATS
+                # =================================================
 
-                try:
+                if strategy not in stats["strategies"]:
 
-                    rr_value = float(
-                        rr.split(":")[1]
-                    )
+                    stats["strategies"][strategy] = {
 
-                except:
+                        "wins": 0,
+                        "losses": 0,
+                        "total": 0
+                    }
 
-                    rr_value = 1
+                stats["strategies"][strategy]["total"] += 1
 
-                # =========================================
-                # WIN
-                # =========================================
+                # =================================================
+                # WINS
+                # =================================================
 
-                if result == "WIN":
+                if s.get("result") == "WIN":
 
                     stats["wins"] += 1
 
-                    stats["rr_total"] += rr_value
+                    stats["rr_won"] += rr_value
 
                     stats["pairs"][symbol]["wins"] += 1
 
-                    stats["pairs"][symbol]["rr_total"] += rr_value
+                    stats["pairs"][symbol]["rr"] += rr_value
 
-                # =========================================
-                # LOSS
-                # =========================================
+                    stats["strategies"][strategy]["wins"] += 1
 
-                elif result == "LOSS":
+                # =================================================
+                # LOSSES
+                # =================================================
+
+                elif s.get("result") == "LOSS":
 
                     stats["losses"] += 1
 
-                    stats["rr_total"] -= 1
+                    stats["rr_lost"] += 1
 
                     stats["pairs"][symbol]["losses"] += 1
 
-                    stats["pairs"][symbol]["rr_total"] -= 1
+                    stats["pairs"][symbol]["rr"] -= 1
 
-            # =============================================
-            # STORE STATS
-            # =============================================
+                    stats["strategies"][strategy]["losses"] += 1
+
+            # =====================================================
+            # FINAL METRICS
+            # =====================================================
+
+            stats["net_rr"] = round(
+                stats["rr_won"] - stats["rr_lost"],
+                2
+            )
+
+            if stats["rr_lost"] > 0:
+
+                stats["profit_factor"] = round(
+                    stats["rr_won"] / stats["rr_lost"],
+                    2
+                )
+
+            else:
+
+                stats["profit_factor"] = round(
+                    stats["rr_won"],
+                    2
+                )
+
+            if stats["total"] > 0:
+
+                expectancy = (
+                    stats["net_rr"] / stats["total"]
+                )
+
+                stats["expectancy"] = round(expectancy, 2)
 
             db["staffs"] = stats
 
@@ -157,31 +177,32 @@ def load_data():
 
         except Exception as e:
 
-            logging.error(
-                f"Load error: {e}"
-            )
+            logging.error(f"Load error: {e}")
 
-    # =====================================================
-    # DEFAULT DATABASE
-    # =====================================================
+    # =========================================================
+    # EMPTY DATABASE
+    # =========================================================
 
     return {
 
         "active": [],
-
         "history": [],
 
         "staffs": {
 
             "wins": 0,
-
             "losses": 0,
-
             "total": 0,
 
-            "rr_total": 0,
+            "rr_won": 0,
+            "rr_lost": 0,
+            "net_rr": 0,
 
-            "pairs": {}
+            "profit_factor": 0,
+            "expectancy": 0,
+
+            "pairs": {},
+            "strategies": {}
         }
     }
 
@@ -193,27 +214,17 @@ def save_data(data):
 
     to_save = {
 
-        "active": data.get(
-            "active",
-            []
-        ),
+        "active": data.get("active", []),
 
-        "history": data.get(
-            "history",
-            []
-        )
+        "history": data.get("history", [])
     }
 
     with open(DB_FILE, "w") as f:
 
-        json.dump(
-            to_save,
-            f,
-            indent=2
-        )
+        json.dump(to_save, f, indent=2)
 
 # =========================================================
-# ACTIVE TRADE EVALUATION
+# ACTIVE TRADE MONITOR
 # =========================================================
 
 def evaluate_active_trades(db):
@@ -225,12 +236,8 @@ def evaluate_active_trades(db):
         symbol = trade.get("symbol")
 
         interval = (
-
             "5min"
-
-            if trade.get("strat")
-            == "Hybrid Fake Breakout"
-
+            if trade.get("strat") == "Hybrid Fake Breakout"
             else "1day"
         )
 
@@ -250,21 +257,13 @@ def evaluate_active_trades(db):
 
             last_candle = df.iloc[-1]
 
-            high = float(
-                last_candle['high']
-            )
+            high = float(last_candle['high'])
 
-            low = float(
-                last_candle['low']
-            )
+            low = float(last_candle['low'])
 
-            tp = float(
-                trade.get("tp", 0)
-            )
+            tp = float(trade.get("tp", 0))
 
-            sl = float(
-                trade.get("sl", 0)
-            )
+            sl = float(trade.get("sl", 0))
 
             trade_type = trade.get("type")
 
@@ -272,9 +271,9 @@ def evaluate_active_trades(db):
 
             result = None
 
-            # =============================================
-            # BUY TRADES
-            # =============================================
+            # =================================================
+            # BUY
+            # =================================================
 
             if trade_type == "BUY":
 
@@ -290,9 +289,9 @@ def evaluate_active_trades(db):
 
                     result = "LOSS"
 
-            # =============================================
-            # SELL TRADES
-            # =============================================
+            # =================================================
+            # SELL
+            # =================================================
 
             elif trade_type == "SELL":
 
@@ -308,28 +307,22 @@ def evaluate_active_trades(db):
 
                     result = "LOSS"
 
-            # =============================================
+            # =================================================
             # CLOSE TRADE
-            # =============================================
+            # =================================================
 
             if was_hit:
 
                 trade["result"] = result
 
-                trade["closed_at"] = (
-                    datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                trade["closed_at"] = datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
                 )
 
-                db["history"].insert(
-                    0,
-                    trade
-                )
+                db["history"].insert(0, trade)
 
                 logging.info(
-                    f"Trade Closed: "
-                    f"{symbol} hit {result}"
+                    f"Trade Closed: {symbol} hit {result}"
                 )
 
             else:
@@ -339,8 +332,7 @@ def evaluate_active_trades(db):
         except Exception as e:
 
             logging.error(
-                f"Error checking active "
-                f"trade {symbol}: {e}"
+                f"Error checking active trade {symbol}: {e}"
             )
 
             still_active.append(trade)
@@ -374,43 +366,31 @@ def dashboard():
 
     history_rows = ""
 
-    for s in db.get("history", [])[:50]:
+    for s in db.get("history", [])[:20]:
 
-        signal_class = (
-
-            "buy-signal"
-
+        color = (
+            "#10b981"
             if s.get("type") == "BUY"
-
-            else "sell-signal"
+            else "#f43f5e"
         )
 
-        result_class = (
-
-            "buy-signal"
-
+        result_color = (
+            "#10b981"
             if s.get("result") == "WIN"
-
-            else "sell-signal"
+            else "#f43f5e"
         )
 
         history_rows += f"""
         <tr>
-            <td class='pair-name'>{s.get('symbol')}</td>
-
-            <td class='{signal_class}'>
+            <td>{s.get('symbol')}</td>
+            <td style='color:{color};font-weight:700'>
                 {s.get('type')}
             </td>
-
             <td>{s.get('entry')}</td>
-
             <td>{s.get('sl')}</td>
-
             <td>{s.get('tp')}</td>
-
             <td>{s.get('rr')}</td>
-
-            <td class='{result_class}'>
+            <td style='color:{result_color};font-weight:700'>
                 {s.get('result', '-')}
             </td>
         </tr>
@@ -424,32 +404,23 @@ def dashboard():
 
     for s in db.get("active", []):
 
-        signal_class = (
-
-            "buy-signal"
-
+        color = (
+            "#10b981"
             if s.get("type") == "BUY"
-
-            else "sell-signal"
+            else "#f43f5e"
         )
 
         active_rows += f"""
         <tr>
-            <td class='pair-name'>{s.get('symbol')}</td>
-
-            <td class='{signal_class}'>
+            <td>{s.get('symbol')}</td>
+            <td style='color:{color};font-weight:700'>
                 {s.get('type')}
             </td>
-
             <td>{s.get('entry')}</td>
-
             <td>{s.get('sl')}</td>
-
             <td>{s.get('tp')}</td>
-
             <td>{s.get('rr')}</td>
-
-            <td class='cyan-status'>
+            <td style='color:#38bdf8;font-weight:700'>
                 ACTIVE
             </td>
         </tr>
@@ -465,89 +436,48 @@ def dashboard():
 
     for pair, p_data in staffs["pairs"].items():
 
-        total = p_data["total"]
-
-        wins = p_data["wins"]
-
-        rr_total = p_data["rr_total"]
-
         wr = (
-            (wins / total) * 100
-            if total > 0
-            else 0
-        )
-
-        avg_rr = (
-            round(rr_total / total, 2)
-            if total > 0
-            else 0
-        )
+            (
+                p_data['wins']
+                / p_data['total']
+            ) * 100
+        ) if p_data['total'] > 0 else 0
 
         pair_html += f"""
         <div class="pair-card">
-
-            <div class="p-name">
-                {pair}
-            </div>
-
-            <div class="p-wr">
-                {wr:.1f}%
-            </div>
-
+            <div class="p-name">{pair}</div>
+            <div class="p-wr">{wr:.1f}%</div>
             <div class="p-count">
-                {total} Signals
+                {p_data['total']} Signals
             </div>
-
-            <div class="p-rr">
-                Avg RR: {avg_rr}
+            <div class="p-count">
+                RR: {p_data['rr']}
             </div>
-
         </div>
         """
 
     # =====================================================
-    # GLOBAL STATS
+    # GLOBAL WINRATE
     # =====================================================
 
-    total = staffs["total"]
-
-    wins = staffs["wins"]
-
-    losses = staffs["losses"]
-
-    rr_total = staffs["rr_total"]
-
     global_wr = (
-
-        (wins / total) * 100
-
-        if total > 0
-
-        else 0
-    )
-
-    avg_rr = (
-
-        round(rr_total / total, 2)
-
-        if total > 0
-
-        else 0
-    )
+        (
+            staffs['wins']
+            / staffs['total']
+        ) * 100
+    ) if staffs['total'] > 0 else 0
 
     last_scan = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
     )
 
     # =====================================================
-    # TEMPLATE REPLACEMENT
+    # HTML REPLACEMENTS
     # =====================================================
 
-    html = template
-
-    html = html.replace(
+    html = template.replace(
         "{{TOTAL}}",
-        str(total)
+        str(staffs['total'])
     )
 
     html = html.replace(
@@ -556,18 +486,38 @@ def dashboard():
     )
 
     html = html.replace(
-        "{{AVG_RR}}",
-        str(avg_rr)
+        "{{TOTAL_WINS}}",
+        str(staffs['wins'])
     )
 
     html = html.replace(
-        "{{WINS}}",
-        str(wins)
+        "{{TOTAL_LOSSES}}",
+        str(staffs['losses'])
     )
 
     html = html.replace(
-        "{{LOSSES}}",
-        str(losses)
+        "{{RR_WON}}",
+        str(round(staffs['rr_won'], 2))
+    )
+
+    html = html.replace(
+        "{{RR_LOST}}",
+        str(round(staffs['rr_lost'], 2))
+    )
+
+    html = html.replace(
+        "{{NET_RR}}",
+        str(round(staffs['net_rr'], 2))
+    )
+
+    html = html.replace(
+        "{{PROFIT_FACTOR}}",
+        str(staffs['profit_factor'])
+    )
+
+    html = html.replace(
+        "{{EXPECTANCY}}",
+        str(staffs['expectancy'])
     )
 
     html = html.replace(
@@ -577,20 +527,14 @@ def dashboard():
 
     html = html.replace(
         "{{SIGNALS}}",
-        history_rows
-        or
-        "<tr><td colspan='7'>"
-        "No Closed Signals Yet"
-        "</td></tr>"
+        history_rows or
+        "<tr><td colspan='7'>No Closed Signals Yet</td></tr>"
     )
 
     html = html.replace(
         "{{ACTIVE_SIGNALS}}",
-        active_rows
-        or
-        "<tr><td colspan='7'>"
-        "No Active Signals"
-        "</td></tr>"
+        active_rows or
+        "<tr><td colspan='7'>No Active Signals</td></tr>"
     )
 
     html = html.replace(
@@ -609,15 +553,7 @@ def run_scanner():
 
     db = load_data()
 
-    # =====================================================
-    # MONITOR ACTIVE POSITIONS
-    # =====================================================
-
     db = evaluate_active_trades(db)
-
-    # =====================================================
-    # FIND NEW SIGNALS
-    # =====================================================
 
     new_found = engine.check_strategies()
 
@@ -625,60 +561,36 @@ def run_scanner():
 
         for s in new_found:
 
-            # =============================================
-            # DUPLICATE PREVENTION
-            # =============================================
-
             exists = any(
 
-                x.get("symbol")
-                == s.get("symbol")
+                x.get("symbol") == s.get("symbol")
 
-                and
+                and x.get("entry") == s.get("entry")
 
-                x.get("entry")
-                == s.get("entry")
-
-                and
-
-                x.get("type")
-                == s.get("type")
+                and x.get("type") == s.get("type")
 
                 for x in db["active"]
             )
 
             if not exists:
 
-                s["created"] = (
-                    datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                s["created"] = datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
                 )
 
-                db["active"].insert(
-                    0,
-                    s
-                )
+                db["active"].insert(0, s)
 
-    # =====================================================
-    # SAVE
-    # =====================================================
-
-    save_data(db)
+        save_data(db)
 
     return {
 
         "status": "complete",
 
-        "new": len(new_found),
-
-        "active": len(db["active"]),
-
-        "history": len(db["history"])
+        "new": len(new_found)
     }
 
 # =========================================================
-# START SERVER
+# RUN SERVER
 # =========================================================
 
 if __name__ == "__main__":
@@ -687,4 +599,4 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=10000
-                )
+            )
