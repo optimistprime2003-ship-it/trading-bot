@@ -1,929 +1,533 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Quantum Signal Pro</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-    <style>
-
-        :root {
-
-            --bg-deep: #020613;
-
-            --glass-bg: rgba(10, 15, 30, 0.75);
-
-            --glass-border: rgba(56, 189, 248, 0.25);
-
-            --cyan-glow: #00f0ff;
-
-            --green-glow: #00ff88;
-
-            --red-glow: #ff2a55;
-
-            --gold-glow: #ffd700;
-
-            --text-main: #e2e8f0;
-
-            --text-muted: #64748b;
-        }
-
-        * {
-
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-
-            font-family: 'Inter', sans-serif;
-
-            background:
-                radial-gradient(circle at top, rgba(0,240,255,0.1), transparent 40%),
-                linear-gradient(to bottom, #020613, #040b1f);
-
-            color: white;
-
-            min-height: 100vh;
-
-            overflow-x: hidden;
-        }
-
-        body::before {
-
-            content: '';
-
-            position: fixed;
-
-            inset: 0;
-
-            background:
-                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-
-            background-size: 40px 40px;
-
-            z-index: -1;
-        }
-
-        .container {
-
-            width: 100%;
-
-            max-width: 1100px;
-
-            margin: auto;
-
-            padding: 30px 20px 80px;
-        }
-
-        header {
-
-            text-align: center;
-
-            margin-bottom: 30px;
-        }
-
-        .brand-title {
-
-            font-family: 'Rajdhani', sans-serif;
-
-            font-size: 52px;
-
-            letter-spacing: 10px;
-
-            color: white;
-
-            text-shadow:
-                0 0 10px var(--cyan-glow),
-                0 0 30px var(--cyan-glow);
-        }
-
-        .live-badge {
-
-            margin-top: 20px;
-
-            display: inline-flex;
-
-            align-items: center;
-
-            gap: 12px;
-
-            padding: 12px 30px;
-
-            border-radius: 40px;
-
-            background: rgba(0,240,255,0.08);
-
-            border: 1px solid rgba(0,240,255,0.2);
-
-            font-family: 'Rajdhani', sans-serif;
-
-            letter-spacing: 4px;
-
-            color: #b6faff;
-
-            font-size: 18px;
-        }
-
-        .live-dot {
-
-            width: 12px;
-
-            height: 12px;
-
-            border-radius: 50%;
-
-            background: var(--green-glow);
-
-            box-shadow: 0 0 20px var(--green-glow);
-
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-
-            0% { transform: scale(0.9); opacity: 0.7; }
-
-            50% { transform: scale(1.1); opacity: 1; }
-
-            100% { transform: scale(0.9); opacity: 0.7; }
-        }
-
-        /* ================================= */
-        /* BOOK METRICS */
-        /* ================================= */
-
-        .metrics-book {
-
-            width: 100%;
-
-            overflow: hidden;
-
-            margin-bottom: 25px;
-        }
-
-        .metric-page {
-
-            display: none;
-
-            flex-direction: column;
-
-            gap: 25px;
-
-            animation: fadeIn 0.5s ease;
-        }
-
-        .active-page {
-
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-
-            from {
-
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .hud-card {
-
-            background: var(--glass-bg);
-
-            border: 1px solid var(--glass-border);
-
-            border-radius: 30px;
-
-            padding: 40px 20px;
-
-            text-align: center;
-
-            backdrop-filter: blur(20px);
-
-            box-shadow:
-                0 10px 40px rgba(0,0,0,0.5),
-                inset 0 0 20px rgba(0,240,255,0.03);
-        }
-
-        .hud-card small {
-
-            display: block;
-
-            color: var(--text-muted);
-
-            font-family: 'Rajdhani', sans-serif;
-
-            letter-spacing: 6px;
-
-            font-size: 20px;
-
-            margin-bottom: 20px;
-        }
-
-        .hud-card h2 {
-
-            font-size: 70px;
-
-            font-weight: 800;
-        }
-
-        .cyan-text {
-
-            color: white;
-
-            text-shadow: 0 0 20px var(--cyan-glow);
-        }
-
-        .green-text {
-
-            color: white;
-
-            text-shadow: 0 0 20px var(--green-glow);
-        }
-
-        .red-text {
-
-            color: white;
-
-            text-shadow: 0 0 20px var(--red-glow);
-        }
-
-        .gold-text {
-
-            color: white;
-
-            text-shadow: 0 0 20px var(--gold-glow);
-        }
-
-        .page-dots {
-
-            display: flex;
-
-            justify-content: center;
-
-            gap: 12px;
-
-            margin-bottom: 30px;
-        }
-
-        .dot {
-
-            width: 12px;
-
-            height: 12px;
-
-            border-radius: 50%;
-
-            background: rgba(255,255,255,0.2);
-        }
-
-        .active-dot {
-
-            background: var(--cyan-glow);
-
-            box-shadow: 0 0 15px var(--cyan-glow);
-        }
-
-        .monitoring-strip {
-
-            margin-bottom: 30px;
-
-            padding: 25px;
-
-            text-align: center;
-
-            background: rgba(0,240,255,0.05);
-
-            border: 1px solid rgba(0,240,255,0.2);
-
-            border-radius: 20px;
-
-            backdrop-filter: blur(20px);
-        }
-
-        .monitoring-strip .wave {
-
-            font-size: 24px;
-
-            color: var(--cyan-glow);
-
-            font-family: 'Rajdhani', sans-serif;
-
-            letter-spacing: 4px;
-
-            margin-bottom: 10px;
-        }
-
-        .monitoring-strip p {
-
-            font-size: 18px;
-
-            color: #d4d4d4;
-        }
-
-        /* ================================= */
-        /* TABS */
-        /* ================================= */
-
-        .nav-tabs {
-
-            display: flex;
-
-            gap: 15px;
-
-            margin-bottom: 35px;
-
-            background: rgba(0,0,0,0.35);
-
-            border-radius: 24px;
-
-            padding: 12px;
-        }
-
-        .tab-btn {
-
-            flex: 1;
-
-            border: none;
-
-            background: transparent;
-
-            color: var(--text-muted);
-
-            padding: 18px;
-
-            border-radius: 18px;
-
-            font-family: 'Rajdhani', sans-serif;
-
-            font-size: 22px;
-
-            letter-spacing: 4px;
-
-            font-weight: 700;
-
-            cursor: pointer;
-
-            transition: 0.3s;
-        }
-
-        .tab-btn.active {
-
-            background: rgba(0,240,255,0.12);
-
-            color: white;
-
-            box-shadow:
-                inset 0 0 20px rgba(0,240,255,0.2),
-                0 0 20px rgba(0,240,255,0.15);
-        }
-
-        .tab-content {
-
-            display: none;
-        }
-
-        .active-tab {
-
-            display: block;
-        }
-
-        .engine-banner {
-
-            text-align: center;
-
-            margin-bottom: 25px;
-
-            padding: 25px;
-
-            font-family: 'Rajdhani', sans-serif;
-
-            font-size: 26px;
-
-            letter-spacing: 6px;
-
-            color: var(--cyan-glow);
-
-            border-top: 1px solid rgba(0,240,255,0.2);
-
-            border-bottom: 1px solid rgba(0,240,255,0.2);
-        }
-
-        .table-wrap {
-
-            background: var(--glass-bg);
-
-            border-radius: 30px;
-
-            overflow: auto;
-
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        table {
-
-            width: 100%;
-
-            border-collapse: collapse;
-        }
-
-        thead {
-
-            background: rgba(0,0,0,0.35);
-        }
-
-        th {
-
-            padding: 22px;
-
-            color: var(--text-muted);
-
-            font-family: 'Rajdhani', sans-serif;
-
-            font-size: 20px;
-
-            letter-spacing: 4px;
-        }
-
-        td {
-
-            padding: 22px;
-
-            text-align: center;
-
-            border-top: 1px solid rgba(255,255,255,0.03);
-
-            font-size: 17px;
-        }
-
-        tr:hover td {
-
-            background: rgba(0,240,255,0.03);
-        }
-
-        .buy-signal {
-
-            color: var(--green-glow);
-
-            font-weight: 800;
-        }
-
-        .sell-signal {
-
-            color: var(--red-glow);
-
-            font-weight: 800;
-        }
-
-        .pair-name {
-
-            font-weight: 800;
-
-            color: white;
-        }
-
-        .stats-grid {
-
-            display: grid;
-
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-
-            gap: 20px;
-        }
-
-        .pair-card {
-
-            background: var(--glass-bg);
-
-            border: 1px solid rgba(0,240,255,0.15);
-
-            border-radius: 24px;
-
-            padding: 25px;
-
-            text-align: center;
-        }
-
-        .p-name {
-
-            font-size: 24px;
-
-            font-family: 'Rajdhani', sans-serif;
-
-            margin-bottom: 10px;
-        }
-
-        .p-wr {
-
-            font-size: 42px;
-
-            color: var(--green-glow);
-
-            text-shadow: 0 0 15px var(--green-glow);
-        }
-
-        .p-count {
-
-            margin-top: 10px;
-
-            color: var(--text-muted);
-        }
-
-        @media(max-width: 768px) {
-
-            .brand-title {
-
-                font-size: 36px;
-
-                letter-spacing: 5px;
-            }
-
-            .hud-card h2 {
-
-                font-size: 56px;
-            }
-
-            table {
-
-                min-width: 700px;
-            }
-        }
-
-    </style>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Signal Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+    --bg:#020817;
+    --card:#061226;
+    --cyan:#00e5ff;
+    --green:#00ff99;
+    --red:#ff3b6b;
+    --gold:#ffe066;
+    --text:#e2e8f0;
+    --muted:#64748b;
+    --border:rgba(0,229,255,0.15);
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:
+    linear-gradient(to bottom,#020617,#031224),
+    radial-gradient(circle at top,rgba(0,229,255,0.08),transparent 40%);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+}
+
+body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none;
+}
+
+.app{
+    max-width:500px;
+    margin:auto;
+    padding:20px 18px 120px;
+}
+
+.header{
+    text-align:center;
+    margin-top:10px;
+}
+
+.title{
+    font-family:'Rajdhani',sans-serif;
+    font-size:42px;
+    font-weight:700;
+    letter-spacing:6px;
+    color:var(--cyan);
+    text-shadow:0 0 15px rgba(0,229,255,0.7);
+}
+
+.live-box{
+    margin:18px auto 30px;
+    width:260px;
+    border:1px solid rgba(0,229,255,0.25);
+    border-radius:50px;
+    padding:14px;
+    color:#c8f9ff;
+    background:rgba(0,229,255,0.05);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    font-family:'Rajdhani',sans-serif;
+    letter-spacing:4px;
+    font-size:20px;
+}
+
+.live-dot{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 15px var(--green);
+    animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+    0%{transform:scale(1);opacity:1;}
+    50%{transform:scale(1.3);opacity:.7;}
+    100%{transform:scale(1);opacity:1;}
+}
+
+.page{
+    display:none;
+    animation:fade .3s ease;
+}
+
+.active-page{
+    display:block;
+}
+
+@keyframes fade{
+    from{opacity:0;transform:translateY(10px)}
+    to{opacity:1;transform:translateY(0)}
+}
+
+.card{
+    background:linear-gradient(to bottom right,#04101f,#031120);
+    border:1px solid var(--border);
+    border-radius:28px;
+    padding:30px 20px;
+    margin-bottom:22px;
+    box-shadow:
+    0 0 20px rgba(0,229,255,0.06),
+    inset 0 0 20px rgba(0,229,255,0.03);
+}
+
+.metric-label{
+    font-family:'Rajdhani',sans-serif;
+    font-size:20px;
+    letter-spacing:5px;
+    color:#7c8ba1;
+    text-align:center;
+    margin-bottom:18px;
+}
+
+.metric-value{
+    text-align:center;
+    font-size:72px;
+    font-weight:800;
+}
+
+.cyan{color:white;text-shadow:0 0 18px var(--cyan);}
+.green{color:white;text-shadow:0 0 18px var(--green);}
+.red{color:white;text-shadow:0 0 18px var(--red);}
+.gold{color:white;text-shadow:0 0 18px var(--gold);}
+
+.monitor-box{
+    background:rgba(0,229,255,0.06);
+    border:1px solid rgba(0,229,255,0.2);
+    border-radius:22px;
+    padding:25px;
+    text-align:center;
+    margin:25px 0;
+}
+
+.monitor-box h3{
+    color:var(--cyan);
+    font-size:20px;
+    letter-spacing:3px;
+    margin-bottom:8px;
+}
+
+.monitor-box p{
+    color:#cbd5e1;
+    font-size:18px;
+}
+
+.engine-banner{
+    margin:25px 0;
+    text-align:center;
+    padding:20px;
+    border-top:1px solid rgba(0,229,255,0.2);
+    border-bottom:1px solid rgba(0,229,255,0.2);
+    color:var(--cyan);
+    font-family:'Rajdhani',sans-serif;
+    font-size:24px;
+    letter-spacing:5px;
+    text-shadow:0 0 12px rgba(0,229,255,0.6);
+}
+
+.table-wrap{
+    overflow-x:auto;
+    border-radius:25px;
+    border:1px solid rgba(255,255,255,0.05);
+    background:#020b18;
+}
+
+.table-wrap::-webkit-scrollbar{
+    display:none;
+}
+
+.table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:700px;
+}
+
+.table th{
+    padding:22px 18px;
+    font-family:'Rajdhani',sans-serif;
+    letter-spacing:4px;
+    font-size:18px;
+    color:#7b8aa3;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.table td{
+    padding:20px 18px;
+    text-align:center;
+    border-bottom:1px solid rgba(255,255,255,0.03);
+    font-weight:600;
+}
+
+.buy{
+    color:var(--green);
+    font-weight:700;
+}
+
+.sell{
+    color:var(--red);
+    font-weight:700;
+}
+
+.win{
+    color:var(--green);
+    font-weight:700;
+}
+
+.loss{
+    color:var(--red);
+    font-weight:700;
+}
+
+.stats-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+}
+
+.small-card{
+    background:linear-gradient(to bottom,#071424,#04101d);
+    border:1px solid rgba(0,229,255,0.15);
+    border-radius:22px;
+    padding:24px 16px;
+    text-align:center;
+}
+
+.small-card h4{
+    color:#7b8aa3;
+    font-family:'Rajdhani',sans-serif;
+    letter-spacing:3px;
+    margin-bottom:12px;
+}
+
+.small-card p{
+    font-size:34px;
+    font-weight:800;
+}
+
+.history-item{
+    background:rgba(0,229,255,0.05);
+    border:1px solid rgba(0,229,255,0.15);
+    border-radius:18px;
+    padding:18px;
+    margin-bottom:16px;
+}
+
+.settings-card{
+    background:linear-gradient(to bottom,#061525,#04101d);
+    border:1px solid rgba(0,229,255,0.15);
+    border-radius:25px;
+    padding:25px;
+}
+
+.setting-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+    color:#dbeafe;
+    font-size:18px;
+}
+
+.bottom-nav{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    max-width:500px;
+    margin:auto;
+    background:#020b18;
+    border-top:1px solid rgba(0,229,255,0.1);
+    display:flex;
+    justify-content:space-around;
+    padding:14px 8px 22px;
+    z-index:999;
+}
+
+.nav-btn{
+    background:none;
+    border:none;
+    color:#7b8aa3;
+    font-size:13px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+}
+
+.nav-btn.active{
+    color:var(--cyan);
+    text-shadow:0 0 10px rgba(0,229,255,0.8);
+}
+
+.nav-icon{
+    font-size:24px;
+}
+
+</style>
 </head>
-
 <body>
 
-<div class="container">
+<div class="app">
 
-    <header>
+<div class="header">
+    <div class="title">QUANTUM SIGNAL PRO</div>
 
-        <h1 class="brand-title">QUANTUM SIGNAL PRO</h1>
-
-        <div class="live-badge">
-
-            <span class="live-dot"></span>
-
-            LIVE AI ENGINE
-
-        </div>
-
-    </header>
-
-    <!-- ============================ -->
-    <!-- BOOK METRICS -->
-    <!-- ============================ -->
-
-    <div class="metrics-book">
-
-        <!-- PAGE 1 -->
-
-        <div class="metric-page active-page">
-
-            <div class="hud-card">
-
-                <small>TOTAL SIGNALS</small>
-
-                <h2 class="cyan-text">{{TOTAL}}</h2>
-
-            </div>
-
-            <div class="hud-card">
-
-                <small>WIN RATE</small>
-
-                <h2 class="green-text">{{WINRATE}}</h2>
-
-            </div>
-
-        </div>
-
-        <!-- PAGE 2 -->
-
-        <div class="metric-page">
-
-            <div class="hud-card">
-
-                <small>TOTAL WINS</small>
-
-                <h2 class="green-text">{{WINS}}</h2>
-
-            </div>
-
-            <div class="hud-card">
-
-                <small>TOTAL LOSSES</small>
-
-                <h2 class="red-text">{{LOSSES}}</h2>
-
-            </div>
-
-        </div>
-
-        <!-- PAGE 3 -->
-
-        <div class="metric-page">
-
-            <div class="hud-card">
-
-                <small>RR WON</small>
-
-                <h2 class="green-text">{{RR_WON}}</h2>
-
-            </div>
-
-            <div class="hud-card">
-
-                <small>RR LOST</small>
-
-                <h2 class="red-text">{{RR_LOST}}</h2>
-
-            </div>
-
-        </div>
-
-        <!-- PAGE 4 -->
-
-        <div class="metric-page">
-
-            <div class="hud-card">
-
-                <small>NET RR</small>
-
-                <h2 class="cyan-text">{{NET_RR}}</h2>
-
-            </div>
-
-            <div class="hud-card">
-
-                <small>ACCURACY</small>
-
-                <h2 class="gold-text">{{ACCURACY}}</h2>
-
-            </div>
-
-        </div>
-
+    <div class="live-box">
+        <div class="live-dot"></div>
+        LIVE AI ENGINE
     </div>
-
-    <div class="page-dots">
-
-        <span class="dot active-dot"></span>
-
-        <span class="dot"></span>
-
-        <span class="dot"></span>
-
-        <span class="dot"></span>
-
-    </div>
-
-    <!-- ================================= -->
-
-    <div class="monitoring-strip">
-
-        <div class="wave">Monitoring Markets...</div>
-
-        <p>Last Scan: {{LAST_SCAN}}</p>
-
-    </div>
-
-    <!-- ================================= -->
-
-    <div class="nav-tabs">
-
-        <button class="tab-btn active" onclick="showTab('active', this)">
-            ACTIVE
-        </button>
-
-        <button class="tab-btn" onclick="showTab('history', this)">
-            HISTORY
-        </button>
-
-        <button class="tab-btn" onclick="showTab('stats', this)">
-            STATS
-        </button>
-
-    </div>
-
-    <!-- ACTIVE -->
-
-    <div id="active" class="tab-content active-tab">
-
-        <div class="engine-banner">
-
-            LIVE ENGINE: PIN BAR + HYBRID FAKE BREAKOUT
-
-        </div>
-
-        <div class="table-wrap">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>PAIR</th>
-
-                        <th>SIGNAL</th>
-
-                        <th>ENTRY</th>
-
-                        <th>SL</th>
-
-                        <th>TP</th>
-
-                        <th>RR</th>
-
-                        <th>STATUS</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {{ACTIVE_SIGNALS}}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-    <!-- HISTORY -->
-
-    <div id="history" class="tab-content">
-
-        <div class="table-wrap">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>PAIR</th>
-
-                        <th>SIGNAL</th>
-
-                        <th>ENTRY</th>
-
-                        <th>SL</th>
-
-                        <th>TP</th>
-
-                        <th>RR</th>
-
-                        <th>RESULT</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {{SIGNALS}}
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-    <!-- STATS -->
-
-    <div id="stats" class="tab-content">
-
-        <div class="engine-banner">
-
-            PAIR PERFORMANCE MATRIX
-
-        </div>
-
-        <div class="stats-grid">
-
-            {{PAIR_STATS}}
-
-        </div>
-
-    </div>
+</div>
+
+<!-- HOME -->
+<div id="home" class="page active-page">
+
+<div class="card">
+    <div class="metric-label">TOTAL SIGNALS</div>
+    <div class="metric-value cyan">{{TOTAL}}</div>
+</div>
+
+<div class="card">
+    <div class="metric-label">WIN RATE</div>
+    <div class="metric-value green">{{WINRATE}}</div>
+</div>
+
+<div class="monitor-box">
+    <h3>Monitoring Markets...</h3>
+    <p>Last Scan: {{LAST_SCAN}}</p>
+</div>
+
+<div class="engine-banner">
+    LIVE ENGINE: PIN BAR + HYBRID FAKE BREAKOUT
+</div>
+
+<div class="table-wrap">
+<table class="table">
+<thead>
+<tr>
+<th>PAIR</th>
+<th>SIGNAL</th>
+<th>ENTRY</th>
+<th>SL</th>
+<th>TP</th>
+<th>RR</th>
+<th>STATUS</th>
+</tr>
+</thead>
+<tbody>
+{{ACTIVE_SIGNALS}}
+</tbody>
+</table>
+</div>
+
+</div>
+
+<!-- ANALYTICS -->
+<div id="analytics" class="page">
+
+<div class="stats-grid">
+
+<div class="small-card">
+<h4>TOTAL WINS</h4>
+<p class="green">{{WINS}}</p>
+</div>
+
+<div class="small-card">
+<h4>TOTAL LOSSES</h4>
+<p class="red">{{LOSSES}}</p>
+</div>
+
+<div class="small-card">
+<h4>RR WON</h4>
+<p class="green">{{RR_WON}}</p>
+</div>
+
+<div class="small-card">
+<h4>RR LOST</h4>
+<p class="red">{{RR_LOST}}</p>
+</div>
+
+<div class="small-card">
+<h4>NET RR</h4>
+<p class="cyan">{{NET_RR}}</p>
+</div>
+
+<div class="small-card">
+<h4>ACCURACY</h4>
+<p class="gold">{{ACCURACY}}</p>
+</div>
+
+</div>
+
+</div>
+
+<!-- HISTORY -->
+<div id="history" class="page">
+
+<div class="engine-banner">
+HISTORY LOG
+</div>
+
+<div class="table-wrap">
+<table class="table">
+<thead>
+<tr>
+<th>PAIR</th>
+<th>SIGNAL</th>
+<th>ENTRY</th>
+<th>SL</th>
+<th>TP</th>
+<th>RR</th>
+<th>RESULT</th>
+</tr>
+</thead>
+<tbody>
+{{SIGNALS}}
+</tbody>
+</table>
+</div>
+
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="page">
+
+<div class="engine-banner">
+SETTINGS
+</div>
+
+<div class="settings-card">
+
+<div class="setting-row">
+<span>Market Scan Interval</span>
+<span>5 Minutes</span>
+</div>
+
+<div class="setting-row">
+<span>Trading Engine</span>
+<span>ACTIVE</span>
+</div>
+
+<div class="setting-row">
+<span>Pin Bar Strategy</span>
+<span>ON</span>
+</div>
+
+<div class="setting-row">
+<span>Hybrid Fakeout</span>
+<span>ON</span>
+</div>
+
+<div class="setting-row">
+<span>Live Monitoring</span>
+<span>ENABLED</span>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="bottom-nav">
+
+<button class="nav-btn active" onclick="showPage('home',this)">
+<div class="nav-icon">⌂</div>
+<div>Home</div>
+</button>
+
+<button class="nav-btn" onclick="showPage('analytics',this)">
+<div class="nav-icon">📊</div>
+<div>Analytics</div>
+</button>
+
+<button class="nav-btn" onclick="showPage('history',this)">
+<div class="nav-icon">⟲</div>
+<div>History</div>
+</button>
+
+<button class="nav-btn" onclick="showPage('settings',this)">
+<div class="nav-icon">⚙</div>
+<div>Settings</div>
+</button>
 
 </div>
 
 <script>
 
-    /* ========================= */
-    /* TAB SWITCHING */
-    /* ========================= */
+function showPage(id,btn){
 
-    function showTab(tabId, button) {
+    document.querySelectorAll('.page').forEach(page=>{
+        page.classList.remove('active-page');
+    });
 
-        document.querySelectorAll('.tab-content').forEach(tab => {
+    document.querySelectorAll('.nav-btn').forEach(button=>{
+        button.classList.remove('active');
+    });
 
-            tab.classList.remove('active-tab');
-        });
+    document.getElementById(id).classList.add('active-page');
+    btn.classList.add('active');
+}
 
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-
-            btn.classList.remove('active');
-        });
-
-        document.getElementById(tabId).classList.add('active-tab');
-
-        button.classList.add('active');
-    }
-
-    /* ========================= */
-    /* METRIC BOOK */
-    /* ========================= */
-
-    let metricPages = document.querySelectorAll(".metric-page");
-
-    let dots = document.querySelectorAll(".dot");
-
-    let currentPage = 0;
-
-    function showMetricPage(index) {
-
-        metricPages.forEach(page => {
-
-            page.classList.remove("active-page");
-        });
-
-        dots.forEach(dot => {
-
-            dot.classList.remove("active-dot");
-        });
-
-        metricPages[index].classList.add("active-page");
-
-        dots[index].classList.add("active-dot");
-    }
-
-    setInterval(() => {
-
-        currentPage++;
-
-        if(currentPage >= metricPages.length) {
-
-            currentPage = 0;
-        }
-
-        showMetricPage(currentPage);
-
-    }, 4000);
-
-    /* ========================= */
-    /* SIGNAL ALERTS */
-    /* ========================= */
-
-    let previousSignals = document.querySelectorAll("tbody tr").length;
-
-    setInterval(() => {
-
-        let currentSignals = document.querySelectorAll("tbody tr").length;
-
-        if(currentSignals > previousSignals) {
-
-            if(navigator.vibrate) {
-
-                navigator.vibrate([300,150,300]);
-            }
-
-            const audio = new Audio(
-                "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-            );
-
-            audio.play().catch(() => {});
-
-            previousSignals = currentSignals;
-        }
-
-    }, 30000);
+setInterval(()=>{
+    location.reload();
+},30000);
 
 </script>
 
 </body>
-
 </html>
