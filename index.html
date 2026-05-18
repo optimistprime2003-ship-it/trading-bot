@@ -184,6 +184,7 @@ body::before{
     border-radius:25px;
     border:1px solid rgba(255,255,255,0.05);
     background:#020b18;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .table-wrap::-webkit-scrollbar{
@@ -193,7 +194,7 @@ body::before{
 .table{
     width:100%;
     border-collapse:collapse;
-    min-width:700px;
+    min-width:600px; /* Reduced from 700px for better mobile fit */
 }
 
 .table th{
@@ -203,6 +204,7 @@ body::before{
     font-size:18px;
     color:#7b8aa3;
     border-bottom:1px solid rgba(255,255,255,0.05);
+    white-space: nowrap;
 }
 
 .table td{
@@ -210,6 +212,7 @@ body::before{
     text-align:center;
     border-bottom:1px solid rgba(255,255,255,0.03);
     font-weight:600;
+    white-space: nowrap;
 }
 
 .buy{
@@ -232,6 +235,12 @@ body::before{
     font-weight:700;
 }
 
+.empty-state {
+    color: var(--muted);
+    font-weight: 500;
+    padding: 30px !important;
+}
+
 .stats-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -251,6 +260,7 @@ body::before{
     font-family:'Rajdhani',sans-serif;
     letter-spacing:3px;
     margin-bottom:12px;
+    font-size: 14px;
 }
 
 .small-card p{
@@ -318,6 +328,23 @@ body::before{
     font-size:24px;
 }
 
+/* Mobile Optimizations */
+@media (max-width: 480px) {
+    .app { padding: 15px 12px 100px; }
+    .title { font-size: 32px; letter-spacing: 4px; }
+    .live-box { width: 220px; font-size: 16px; padding: 12px; margin: 15px auto 25px; }
+    .metric-label { font-size: 16px; letter-spacing: 3px; }
+    .metric-value { font-size: 56px; }
+    .engine-banner { font-size: 18px; letter-spacing: 3px; padding: 15px; }
+    .table th { padding: 16px 12px; font-size: 15px; }
+    .table td { padding: 16px 12px; font-size: 14px; }
+    .small-card p { font-size: 28px; }
+    .setting-row { font-size: 16px; }
+    .bottom-nav { padding: 12px 5px 18px; }
+    .nav-btn { font-size: 11px; }
+    .nav-icon { font-size: 22px; }
+}
+
 </style>
 </head>
 <body>
@@ -333,22 +360,21 @@ body::before{
     </div>
 </div>
 
-<!-- HOME -->
 <div id="home" class="page active-page">
 
 <div class="card">
     <div class="metric-label">TOTAL SIGNALS</div>
-    <div class="metric-value cyan">{{TOTAL}}</div>
+    <div class="metric-value cyan">0</div>
 </div>
 
 <div class="card">
     <div class="metric-label">WIN RATE</div>
-    <div class="metric-value green">{{WINRATE}}</div>
+    <div class="metric-value green">0.0%</div>
 </div>
 
 <div class="monitor-box">
     <h3>Monitoring Markets...</h3>
-    <p>Last Scan: {{LAST_SCAN}}</p>
+    <p>Last Scan: <span id="scan-time">Updating...</span></p>
 </div>
 
 <div class="engine-banner">
@@ -369,53 +395,53 @@ body::before{
 </tr>
 </thead>
 <tbody>
-{{ACTIVE_SIGNALS}}
+<tr>
+<td colspan="7" class="empty-state">No Active Signals</td>
+</tr>
 </tbody>
 </table>
 </div>
 
 </div>
 
-<!-- ANALYTICS -->
 <div id="analytics" class="page">
 
 <div class="stats-grid">
 
 <div class="small-card">
 <h4>TOTAL WINS</h4>
-<p class="green">{{WINS}}</p>
+<p class="green">0</p>
 </div>
 
 <div class="small-card">
 <h4>TOTAL LOSSES</h4>
-<p class="red">{{LOSSES}}</p>
+<p class="red">0</p>
 </div>
 
 <div class="small-card">
 <h4>RR WON</h4>
-<p class="green">{{RR_WON}}</p>
+<p class="green">0.0</p>
 </div>
 
 <div class="small-card">
 <h4>RR LOST</h4>
-<p class="red">{{RR_LOST}}</p>
+<p class="red">0.0</p>
 </div>
 
 <div class="small-card">
 <h4>NET RR</h4>
-<p class="cyan">{{NET_RR}}</p>
+<p class="cyan">0.0</p>
 </div>
 
 <div class="small-card">
 <h4>ACCURACY</h4>
-<p class="gold">{{ACCURACY}}</p>
+<p class="gold">0.0%</p>
 </div>
 
 </div>
 
 </div>
 
-<!-- HISTORY -->
 <div id="history" class="page">
 
 <div class="engine-banner">
@@ -436,14 +462,15 @@ HISTORY LOG
 </tr>
 </thead>
 <tbody>
-{{SIGNALS}}
+<tr>
+<td colspan="7" class="empty-state">History is empty</td>
+</tr>
 </tbody>
 </table>
 </div>
 
 </div>
 
-<!-- SETTINGS -->
 <div id="settings" class="page">
 
 <div class="engine-banner">
@@ -522,6 +549,14 @@ function showPage(id,btn){
     document.getElementById(id).classList.add('active-page');
     btn.classList.add('active');
 }
+
+// Generate dynamic timestamp for Last Scan
+function updateScanTime() {
+    const now = new Date();
+    const formatted = now.toISOString().slice(0, 19).replace('T', ' ');
+    document.getElementById('scan-time').textContent = formatted;
+}
+updateScanTime();
 
 setInterval(()=>{
     location.reload();
