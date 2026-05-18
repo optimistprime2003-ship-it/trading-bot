@@ -10,7 +10,11 @@ from datetime import datetime
 # =========================================================
 
 PINBAR_PAIRS = ["EUR/USD", "AUD/USD", "USD/JPY", "GBP/USD"]
-RANGE_PAIRS = ["BTC/USD", "ETH/USD"]
+
+RANGE_PAIRS = [
+    "BTC/USD",
+    "ETH/USD"
+]
 
 NY_SESSION_START = "08:00:00"
 
@@ -31,6 +35,13 @@ key_cycle = cycle(keys) if keys else cycle(["DEMO_KEY"])
 # =========================================================
 
 daily_ranges = {}
+
+# =========================================================
+# GLOBAL TRADE STORAGE
+# =========================================================
+
+active_trades = []
+trade_history = []
 
 # =========================================================
 # DATA FETCHER
@@ -54,7 +65,11 @@ def get_data(symbol, interval, outputsize=50):
         res = requests.get(url).json()
 
         if 'values' not in res:
-            logging.error(f"No values returned for {symbol} {interval}")
+
+            logging.error(
+                f"No values returned for {symbol} {interval}"
+            )
+
             return None
 
         df = pd.DataFrame(res['values'])
@@ -98,100 +113,147 @@ def check_strategies():
 
     # =====================================================
     # 1. DAILY PIN BAR STRATEGY
-    # (UNCHANGED CORE LOGIC)
     # =====================================================
 
     for symbol in PINBAR_PAIRS:
 
-        df = get_data(symbol, "1day")
+        try:
 
-        if df is None or df.empty:
-            continue
+            df = get_data(symbol, "1day")
 
-        # EMA CALCULATIONS
+            if df is None or df.empty:
+                continue
 
-        df['ema8'] = df['close'].ewm(span=8, adjust=False).mean()
-        df['ema20'] = df['close'].ewm(span=20, adjust=False).mean()
-        df['ema50'] = df['close'].ewm(span=50, adjust=False).mean()
+            # =================================================
+            # EMA CALCULATIONS
+            # =================================================
 
-        last = df.iloc[-1]
+            df['ema8'] = (
+                df['close']
+                .ewm(span=8, adjust=False)
+                .mean()
+            )
 
-        bullish_fan = (
-            last['ema8'] > last['ema20'] > last['ema50']
-        )
+            df['ema20'] = (
+                df['close']
+                .ewm(span=20, adjust=False)
+                .mean()
+            )
 
-        bearish_fan = (
-            last['ema8'] < last['ema20'] < last['ema50']
-        )
+            df['ema50'] = (
+                df['close']
+                .ewm(span=50, adjust=False)
+                .mean()
+            )
 
-        buffer = last['close'] * 0.0005
+            last = df.iloc[-1]
 
-        # =================================================
-        # PIN BAR BUY
-        # =================================================
+            bullish_fan = (
+                last['ema8'] >
+                last['ema20'] >
+                last['ema50']
+            )
 
-        if is_pin_bar(
-            last['open'],
-            last['high'],
-            last['low'],
-            last['close']
-        ):
+            bearish_fan = (
+                last['ema8'] <
+                last['ema20'] <
+                last['ema50']
+            )
 
-            if bullish_fan and last['low'] <= (last['ema8'] + buffer):
+            buffer = last['close'] * 0.0005
 
-                entry = last['close']
+            # =================================================
+            # PIN BAR VALIDATION
+            # =================================================
 
-                sl = last['low']
+            if is_pin_bar(
+                last['open'],
+                last['high'],
+                last['low'],
+                last['close']
+            ):
 
-                risk = abs(entry - sl)
+                # =============================================
+                # BUY SETUP
+                # =============================================
 
-                tp = entry + risk
+                if (
+                    bullish_fan
+                    and last['low'] <= (
+                        last['ema8'] + buffer
+                    )
+                ):
 
-                signals.append({
+                    entry = last['close']
 
-                    "symbol": symbol,
-                    "type": "BUY",
+                    sl = last['low']
 
-                    "entry": round(entry, 5),
-                    "sl": round(sl, 5),
-                    "tp": round(tp, 5),
+                    risk = abs(entry - sl)
 
-                    "rr": "1:1",
+                    tp = entry + risk
 
-                    "strat": "1D Pin Bar",
+                    signals.append({
 
-                    "time": last['datetime']
-                })
+                        "symbol": symbol,
 
-            # =============================================
-            # PIN BAR SELL
-            # =============================================
+                        "type": "BUY",
 
-            elif bearish_fan and last['high'] >= (last['ema8'] - buffer):
+                        "entry": round(entry, 5),
 
-                entry = last['close']
+                        "sl": round(sl, 5),
 
-                sl = last['high']
+                        "tp": round(tp, 5),
 
-                risk = abs(sl - entry)
+                        "rr": "1:1",
 
-                tp = entry - risk
+                        "strat": "1D Pin Bar",
 
-                signals.append({
+                        "time": last['datetime']
+                    })
 
-                    "symbol": symbol,
-                    "type": "SELL",
+                # =============================================
+                # SELL SETUP
+                # =============================================
 
-                    "entry": round(entry, 5),
-                    "sl": round(sl, 5),
-                    "tp": round(tp, 5),
+                elif (
+                    bearish_fan
+                    and last['high'] >= (
+                        last['ema8'] - buffer
+                    )
+                ):
 
-                    "rr": "1:1",
+                    entry = last['close']
 
-                    "strat": "1D Pin Bar",
+                    sl = last['high']
 
-                    "time": last['datetime']
-                })
+                    risk = abs(sl - entry)
+
+                    tp = entry - risk
+
+                    signals.append({
+
+                        "symbol": symbol,
+
+                        "type": "SELL",
+
+                        "entry": round(entry, 5),
+
+                        "sl": round(sl, 5),
+
+                        "tp": round(tp, 5),
+
+                        "rr": "1:1",
+
+                        "strat": "1D Pin Bar",
+
+                        "time": last['datetime']
+                    })
+
+        except Exception as e:
+
+            logging.error(
+                f"{symbol} Pin Bar Error: {e}"
+            )
 
     # =====================================================
     # 2. H4 RANGE + 5M HYBRID FAKE BREAKOUT STRATEGY
@@ -201,29 +263,45 @@ def check_strategies():
 
         try:
 
-            # =============================================
-            # FETCH DATA
-            # =============================================
+            # =================================================
+            # FETCH MARKET DATA
+            # =================================================
 
-            df_4h = get_data(symbol, "4h", outputsize=20)
+            df_4h = get_data(
+                symbol,
+                "4h",
+                outputsize=20
+            )
 
-            df_5m = get_data(symbol, "5min", outputsize=100)
+            df_5m = get_data(
+                symbol,
+                "5min",
+                outputsize=100
+            )
 
-            if df_4h is None or df_5m is None:
+            if (
+                df_4h is None
+                or df_5m is None
+            ):
                 continue
 
-            if df_4h.empty or df_5m.empty:
+            if (
+                df_4h.empty
+                or df_5m.empty
+            ):
                 continue
 
-            # =============================================
-            # TODAY DATE
-            # =============================================
+            # =================================================
+            # DATE
+            # =================================================
 
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = datetime.now().strftime(
+                "%Y-%m-%d"
+            )
 
-            # =============================================
+            # =================================================
             # CREATE / RESET DAILY RANGE
-            # =============================================
+            # =================================================
 
             if (
                 symbol not in daily_ranges
@@ -231,11 +309,16 @@ def check_strategies():
             ):
 
                 session_data = df_4h[
-                    df_4h['datetime'].str.contains(NY_SESSION_START)
+                    df_4h['datetime']
+                    .str.contains(NY_SESSION_START)
                 ]
 
                 if session_data.empty:
-                    logging.warning(f"No NY candle found for {symbol}")
+
+                    logging.warning(
+                        f"No NY candle found for {symbol}"
+                    )
+
                     continue
 
                 target = session_data.iloc[-1]
@@ -259,9 +342,9 @@ def check_strategies():
                     f"LOW={target['low']}"
                 )
 
-            # =============================================
-            # FIXED DAILY RANGE
-            # =============================================
+            # =================================================
+            # FIXED RANGE
+            # =================================================
 
             range_high = daily_ranges[symbol]["high"]
 
@@ -277,20 +360,24 @@ def check_strategies():
                 None
             )
 
-            # =============================================
-            # CHECK RECENT 5M CANDLES
-            # =============================================
+            # =================================================
+            # RECENT CANDLES
+            # =================================================
 
             recent_candles = df_5m.tail(20)
+
+            # =================================================
+            # LOOP CANDLES
+            # =================================================
 
             for i in range(len(recent_candles)):
 
                 candle = recent_candles.iloc[i]
 
-                # =========================================
-                # HYBRID BODY BREAKOUT DETECTION
-                # SMALL FAKEOUTS ACCEPTED
-                # =========================================
+                # =============================================
+                # TRUE BODY BREAKS
+                # SMALL BREAKOUTS ACCEPTED
+                # =============================================
 
                 bullish_body_break = (
                     candle['close'] > range_high
@@ -300,23 +387,27 @@ def check_strategies():
                     candle['close'] < range_low
                 )
 
-                # =========================================
-                # IGNORE WICK-ONLY BREAKOUTS
-                # =========================================
+                # =============================================
+                # WICK-ONLY REJECTION
+                # =============================================
 
                 wick_break_high = (
+
                     candle['high'] > range_high
+
                     and candle['close'] <= range_high
                 )
 
                 wick_break_low = (
+
                     candle['low'] < range_low
+
                     and candle['close'] >= range_low
                 )
 
-                # =========================================
+                # =============================================
                 # STORE BREAKOUT STATE
-                # =========================================
+                # =============================================
 
                 if bullish_body_break:
 
@@ -346,20 +437,21 @@ def check_strategies():
 
                     continue
 
-                # =========================================
-                # IGNORE WICK-ONLY BREAKOUTS
-                # =========================================
+                # =============================================
+                # IGNORE PURE WICK SWEEPS
+                # =============================================
 
-                elif wick_break_high or wick_break_low:
+                elif (
+                    wick_break_high
+                    or wick_break_low
+                ):
 
                     continue
 
-                # =========================================
-                # FAST RECLAIM LOGIC
-                # ALLOWS QUICK BACK-AND-FORTH
-                # =========================================
-
-                max_reclaim_candles = 4
+                # =============================================
+                # INSTANT RECLAIM
+                # MUST RECLAIM NEXT CANDLE
+                # =============================================
 
                 sell_reentry = (
 
@@ -367,7 +459,7 @@ def check_strategies():
 
                     and breakout_index is not None
 
-                    and (i - breakout_index) <= max_reclaim_candles
+                    and i == breakout_index + 1
 
                     and candle['close'] < range_high
                 )
@@ -378,14 +470,14 @@ def check_strategies():
 
                     and breakout_index is not None
 
-                    and (i - breakout_index) <= max_reclaim_candles
+                    and i == breakout_index + 1
 
                     and candle['close'] > range_low
                 )
 
-                # =========================================
+                # =============================================
                 # SELL SIGNAL
-                # =========================================
+                # =============================================
 
                 if sell_reentry:
 
@@ -426,9 +518,9 @@ def check_strategies():
 
                     break
 
-                # =========================================
+                # =============================================
                 # BUY SIGNAL
-                # =========================================
+                # =============================================
 
                 elif buy_reentry:
 
@@ -471,6 +563,191 @@ def check_strategies():
 
         except Exception as e:
 
-            logging.error(f"{symbol} Strategy Error: {e}")
+            logging.error(
+                f"{symbol} Strategy Error: {e}"
+            )
 
     return signals
+
+# =========================================================
+# ACTIVE TRADE MONITOR
+# =========================================================
+
+def monitor_active_trades():
+
+    global active_trades
+    global trade_history
+
+    remaining_trades = []
+
+    for trade in active_trades:
+
+        try:
+
+            symbol = trade["symbol"]
+
+            interval = (
+                "5min"
+                if trade["strat"]
+                == "Hybrid Fake Breakout"
+                else "1day"
+            )
+
+            df = get_data(
+                symbol,
+                interval,
+                outputsize=2
+            )
+
+            if df is None or df.empty:
+
+                remaining_trades.append(trade)
+
+                continue
+
+            last_candle = df.iloc[-1]
+
+            high = last_candle['high']
+
+            low = last_candle['low']
+
+            was_hit = False
+
+            result_status = "PENDING"
+
+            # =============================================
+            # BUY TRADES
+            # =============================================
+
+            if trade["type"] == "BUY":
+
+                if high >= trade["tp"]:
+
+                    was_hit = True
+
+                    result_status = "WIN"
+
+                elif low <= trade["sl"]:
+
+                    was_hit = True
+
+                    result_status = "LOSS"
+
+            # =============================================
+            # SELL TRADES
+            # =============================================
+
+            elif trade["type"] == "SELL":
+
+                if low <= trade["tp"]:
+
+                    was_hit = True
+
+                    result_status = "WIN"
+
+                elif high >= trade["sl"]:
+
+                    was_hit = True
+
+                    result_status = "LOSS"
+
+            # =============================================
+            # CLOSE TRADE
+            # =============================================
+
+            if was_hit:
+
+                trade["result"] = result_status
+
+                trade["close_time"] = (
+                    last_candle['datetime']
+                )
+
+                trade_history.append(trade)
+
+            else:
+
+                remaining_trades.append(trade)
+
+        except Exception as e:
+
+            logging.error(
+                f"Trade Monitor Error: {e}"
+            )
+
+            remaining_trades.append(trade)
+
+    active_trades = remaining_trades
+
+# =========================================================
+# METRICS
+# =========================================================
+
+def calculate_metrics():
+
+    global trade_history
+    global active_trades
+
+    total_signals = (
+        len(trade_history)
+        + len(active_trades)
+    )
+
+    closed_trades = len(trade_history)
+
+    if closed_trades == 0:
+
+        win_rate = "0%"
+
+        avg_rr = "0"
+
+    else:
+
+        wins = sum(
+
+            1
+            for t in trade_history
+            if t["result"] == "WIN"
+        )
+
+        win_rate = (
+            f"{round((wins / closed_trades) * 100, 1)}%"
+        )
+
+        rr_total = 0
+
+        for t in trade_history:
+
+            rr = t.get("rr", "1:1")
+
+            try:
+
+                rr_value = float(
+                    rr.split(":")[1]
+                )
+
+                if t["result"] == "WIN":
+
+                    rr_total += rr_value
+
+                else:
+
+                    rr_total -= 1
+
+            except:
+                pass
+
+        avg_rr = round(rr_total, 2)
+
+    return {
+
+        "TOTAL": total_signals,
+
+        "WINRATE": win_rate,
+
+        "AVG_RR": avg_rr,
+
+        "LAST_SCAN": datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        }
