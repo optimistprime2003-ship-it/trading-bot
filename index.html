@@ -1,476 +1,1097 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Signal Pro - Premium</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Quantum Signal Pro - Premium
+    </title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;600;800&display=swap"
+        rel="stylesheet"
+    >
 
     <style>
+
         :root {
+
             --bg-deep: #020613;
+
             --glass-bg: rgba(10, 15, 30, 0.65);
+
             --glass-border: rgba(56, 189, 248, 0.3);
+
             --cyan-glow: #00f0ff;
+
             --green-glow: #00ff88;
+
             --red-glow: #ff2a55;
+
             --text-main: #e2e8f0;
+
             --text-muted: #64748b;
         }
 
         * {
+
             margin: 0;
+
             padding: 0;
+
             box-sizing: border-box;
+
             font-family: 'Inter', sans-serif;
         }
 
         body {
+
             background-color: var(--bg-deep);
-            background-image: 
-                radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.15), transparent 60%),
-                radial-gradient(circle at 50% 100%, rgba(0, 255, 136, 0.05), transparent 50%),
-                linear-gradient(to bottom, #020613, #060b19);
+
+            background-image:
+                radial-gradient(
+                    circle at 50% 0%,
+                    rgba(0, 240, 255, 0.15),
+                    transparent 60%
+                ),
+
+                radial-gradient(
+                    circle at 50% 100%,
+                    rgba(0, 255, 136, 0.05),
+                    transparent 50%
+                ),
+
+                linear-gradient(
+                    to bottom,
+                    #020613,
+                    #060b19
+                );
+
             color: var(--text-main);
+
             min-height: 100vh;
+
             display: flex;
+
             flex-direction: column;
+
             align-items: center;
+
             overflow-x: hidden;
         }
 
-        /* Abstract Background Lines simulating data streams */
         body::before {
+
             content: '';
+
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: 
-                linear-gradient(90deg, rgba(255,255,255,0.01) 1px, transparent 1px),
-                linear-gradient(rgba(255,255,255,0.01) 1px, transparent 1px);
+
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(255,255,255,0.01) 1px,
+                    transparent 1px
+                ),
+
+                linear-gradient(
+                    rgba(255,255,255,0.01) 1px,
+                    transparent 1px
+                );
+
             background-size: 40px 40px;
+
             z-index: -1;
+
             pointer-events: none;
         }
 
         .container {
+
             width: 100%;
-            max-width: 1000px;
+
+            max-width: 1100px;
+
             padding: 40px 20px;
+
             display: flex;
+
             flex-direction: column;
+
             align-items: center;
         }
 
-        /* --- TITLE --- */
+        /* ================================================= */
+        /* HEADER */
+        /* ================================================= */
+
         header {
+
             text-align: center;
+
             margin-bottom: 30px;
         }
 
         h1.brand-title {
+
             font-family: 'Rajdhani', sans-serif;
+
             font-size: 42px;
+
             letter-spacing: 12px;
+
             font-weight: 700;
+
             text-transform: uppercase;
+
             color: transparent;
+
             -webkit-text-stroke: 1px var(--cyan-glow);
-            background: linear-gradient(180deg, #ffffff 0%, var(--cyan-glow) 100%);
+
+            background: linear-gradient(
+                180deg,
+                #ffffff 0%,
+                var(--cyan-glow) 100%
+            );
+
             -webkit-background-clip: text;
-            text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+
+            text-shadow:
+                0 0 20px rgba(0, 240, 255, 0.4);
+
             margin-bottom: 10px;
         }
 
         .ai-scanner-badge {
+
             display: inline-flex;
+
             align-items: center;
+
             gap: 10px;
-            background: rgba(0, 240, 255, 0.05);
-            border: 1px solid var(--glass-border);
+
+            background:
+                rgba(0, 240, 255, 0.05);
+
+            border:
+                1px solid var(--glass-border);
+
             padding: 8px 24px;
+
             border-radius: 30px;
+
             font-family: 'Rajdhani', sans-serif;
+
             letter-spacing: 3px;
+
             font-size: 16px;
+
             color: #a5f3fc;
-            box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+
+            box-shadow:
+                inset 0 0 10px rgba(0, 240, 255, 0.1);
         }
 
-        /* --- HUD DASHBOARD (Top Section) --- */
+        /* ================================================= */
+        /* HUD */
+        /* ================================================= */
+
         .hud-wrapper {
+
             display: flex;
+
             justify-content: center;
+
             align-items: center;
-            gap: 40px;
+
+            gap: 30px;
+
             width: 100%;
+
             margin-bottom: 30px;
+
             position: relative;
+
+            flex-wrap: wrap;
         }
 
-        /* The glowing paths connecting the boxes */
         .hud-wrapper::before {
+
             content: '';
+
             position: absolute;
+
             top: 50%;
+
             left: 10%;
+
             right: 10%;
+
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--cyan-glow),
+                    transparent
+                );
+
             z-index: -1;
+
             opacity: 0.5;
-            box-shadow: 0 0 15px var(--cyan-glow);
+
+            box-shadow:
+                0 0 15px var(--cyan-glow);
         }
 
         .hud-card {
+
             background: var(--glass-bg);
+
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
+
+            border:
+                1px solid var(--glass-border);
+
             border-radius: 20px;
+
             padding: 30px 40px;
+
             text-align: center;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5), inset 0 0 20px rgba(0, 240, 255, 0.05);
+
+            box-shadow:
+                0 15px 35px rgba(0,0,0,0.5),
+
+                inset 0 0 20px rgba(0, 240, 255, 0.05);
+
             position: relative;
+
             overflow: hidden;
-            min-width: 250px;
+
+            min-width: 220px;
         }
 
         .hud-card::before {
+
             content: '';
+
             position: absolute;
-            top: 0; left: 0; right: 0;
+
+            top: 0;
+            left: 0;
+            right: 0;
+
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    var(--cyan-glow),
+                    transparent
+                );
         }
 
         .hud-card small {
+
             font-family: 'Rajdhani', sans-serif;
+
             color: var(--text-muted);
+
             font-size: 16px;
+
             letter-spacing: 4px;
+
             text-transform: uppercase;
+
             display: block;
+
             margin-bottom: 15px;
         }
 
         .hud-card h2 {
-            font-size: 56px;
+
+            font-size: 52px;
+
             font-weight: 800;
+
             line-height: 1;
         }
 
         .cyan-text {
+
             color: #fff;
-            text-shadow: 0 0 15px var(--cyan-glow);
+
+            text-shadow:
+                0 0 15px var(--cyan-glow);
         }
 
         .green-text {
+
             color: #fff;
-            text-shadow: 0 0 15px var(--green-glow);
+
+            text-shadow:
+                0 0 15px var(--green-glow);
         }
 
-        /* Center Neural Chip */
+        .red-text {
+
+            color: #fff;
+
+            text-shadow:
+                0 0 15px var(--red-glow);
+        }
+
+        /* ================================================= */
+        /* CHIP */
+        /* ================================================= */
+
         .neural-chip {
+
             width: 80px;
+
             height: 80px;
-            background: rgba(0, 255, 136, 0.1);
-            border: 2px solid var(--green-glow);
+
+            background:
+                rgba(0, 255, 136, 0.1);
+
+            border:
+                2px solid var(--green-glow);
+
             border-radius: 12px;
+
             display: flex;
+
             justify-content: center;
+
             align-items: center;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 15px rgba(0, 255, 136, 0.3);
+
+            box-shadow:
+                0 0 30px rgba(0, 255, 136, 0.3),
+
+                inset 0 0 15px rgba(0, 255, 136, 0.3);
+
             position: relative;
+
             z-index: 10;
         }
 
         .neural-chip::after {
+
             content: '';
+
             width: 50%;
+
             height: 50%;
+
             background: var(--green-glow);
+
             border-radius: 4px;
-            box-shadow: 0 0 20px var(--green-glow);
+
+            box-shadow:
+                0 0 20px var(--green-glow);
+
             animation: pulse-chip 2s infinite;
         }
 
         @keyframes pulse-chip {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0.8; }
+
+            0% {
+
+                transform: scale(0.9);
+
+                opacity: 0.8;
+            }
+
+            50% {
+
+                transform: scale(1.1);
+
+                opacity: 1;
+            }
+
+            100% {
+
+                transform: scale(0.9);
+
+                opacity: 0.8;
+            }
         }
 
-        /* --- MONITORING STRIP --- */
+        /* ================================================= */
+        /* MONITOR BAR */
+        /* ================================================= */
+
         .monitoring-strip {
-            background: rgba(0, 240, 255, 0.05);
-            border: 1px solid rgba(0, 240, 255, 0.2);
+
+            background:
+                rgba(0, 240, 255, 0.05);
+
+            border:
+                1px solid rgba(0, 240, 255, 0.2);
+
             border-radius: 12px;
+
             padding: 15px 40px;
+
             text-align: center;
+
             margin-bottom: 40px;
-            width: 80%;
+
+            width: 90%;
+
             backdrop-filter: blur(10px);
-            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05);
+
+            box-shadow:
+                inset 0 0 15px rgba(0, 240, 255, 0.05);
         }
 
-        .monitoring-strip p { font-size: 15px; color: #94a3b8; }
-        .monitoring-strip .wave { color: var(--cyan-glow); margin-bottom: 5px; font-weight: 600; letter-spacing: 2px;}
+        .monitoring-strip p {
 
-        /* --- TABS --- */
+            font-size: 15px;
+
+            color: #94a3b8;
+        }
+
+        .monitoring-strip .wave {
+
+            color: var(--cyan-glow);
+
+            margin-bottom: 5px;
+
+            font-weight: 600;
+
+            letter-spacing: 2px;
+        }
+
+        /* ================================================= */
+        /* TABS */
+        /* ================================================= */
+
         .nav-tabs {
+
             display: flex;
+
             gap: 15px;
+
             margin-bottom: 30px;
-            background: rgba(0,0,0,0.3);
+
+            background:
+                rgba(0,0,0,0.3);
+
             padding: 10px;
+
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.05);
+
+            border:
+                1px solid rgba(255,255,255,0.05);
+
+            flex-wrap: wrap;
+
+            justify-content: center;
         }
 
         .tab-btn {
+
             background: transparent;
+
             border: none;
+
             color: var(--text-muted);
+
             padding: 12px 35px;
+
             border-radius: 12px;
+
             font-family: 'Rajdhani', sans-serif;
+
             font-weight: 700;
+
             font-size: 18px;
+
             letter-spacing: 2px;
+
             cursor: pointer;
+
             transition: all 0.3s ease;
+
             position: relative;
+
             overflow: hidden;
         }
 
         .tab-btn.active {
+
             color: #fff;
-            background: rgba(0, 240, 255, 0.1);
-            text-shadow: 0 0 10px var(--cyan-glow);
-            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.2);
+
+            background:
+                rgba(0, 240, 255, 0.1);
+
+            text-shadow:
+                0 0 10px var(--cyan-glow);
+
+            box-shadow:
+                inset 0 0 15px rgba(0, 240, 255, 0.2);
         }
 
         .tab-btn.active::after {
+
             content: '';
+
             position: absolute;
-            bottom: 0; left: 0; right: 0;
+
+            bottom: 0;
+            left: 0;
+            right: 0;
+
             height: 3px;
+
             background: var(--cyan-glow);
-            box-shadow: 0 -2px 10px var(--cyan-glow);
+
+            box-shadow:
+                0 -2px 10px var(--cyan-glow);
         }
 
-        .tab-content { display: none; width: 100%; }
-        .active-tab { display: block; animation: fadeIn 0.4s ease forwards; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .tab-content {
 
-        /* --- ENGINE BANNER --- */
-        .engine-banner {
-            background: linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(0,240,255,0.1) 50%, rgba(15,23,42,0) 100%);
-            border-top: 1px solid var(--glass-border);
-            border-bottom: 1px solid var(--glass-border);
-            text-align: center;
-            padding: 15px;
-            font-family: 'Rajdhani', sans-serif;
-            color: var(--cyan-glow);
-            font-size: 20px;
-            letter-spacing: 4px;
-            font-weight: 700;
-            margin-bottom: 30px;
-            text-shadow: 0 0 10px rgba(0,240,255,0.5);
+            display: none;
+
             width: 100%;
         }
 
-        /* --- TABLE AREA --- */
+        .active-tab {
+
+            display: block;
+
+            animation:
+                fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+
+            from {
+
+                opacity: 0;
+
+                transform: translateY(10px);
+            }
+
+            to {
+
+                opacity: 1;
+
+                transform: translateY(0);
+            }
+        }
+
+        /* ================================================= */
+        /* ENGINE BANNER */
+        /* ================================================= */
+
+        .engine-banner {
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(15,23,42,0) 0%,
+                    rgba(0,240,255,0.1) 50%,
+                    rgba(15,23,42,0) 100%
+                );
+
+            border-top:
+                1px solid var(--glass-border);
+
+            border-bottom:
+                1px solid var(--glass-border);
+
+            text-align: center;
+
+            padding: 15px;
+
+            font-family: 'Rajdhani', sans-serif;
+
+            color: var(--cyan-glow);
+
+            font-size: 20px;
+
+            letter-spacing: 4px;
+
+            font-weight: 700;
+
+            margin-bottom: 30px;
+
+            text-shadow:
+                0 0 10px rgba(0,240,255,0.5);
+
+            width: 100%;
+        }
+
+        /* ================================================= */
+        /* TABLE */
+        /* ================================================= */
+
         .table-wrap {
+
             background: var(--glass-bg);
+
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.08);
+
+            border:
+                1px solid rgba(255,255,255,0.08);
+
             border-radius: 20px;
+
             padding: 1px;
+
             overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+
+            box-shadow:
+                0 20px 40px rgba(0,0,0,0.6);
         }
 
         table {
+
             width: 100%;
+
             border-collapse: collapse;
+
             text-align: center;
         }
 
         thead {
-            background: rgba(0,0,0,0.4);
+
+            background:
+                rgba(0,0,0,0.4);
         }
 
         th {
+
             padding: 20px;
+
             color: var(--text-muted);
+
             font-family: 'Rajdhani', sans-serif;
+
             font-size: 16px;
+
             letter-spacing: 2px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+
+            border-bottom:
+                1px solid rgba(255,255,255,0.05);
+
             text-transform: uppercase;
         }
 
         td {
+
             padding: 20px;
+
             font-size: 16px;
+
             font-weight: 600;
-            border-bottom: 1px solid rgba(255,255,255,0.02);
+
+            border-bottom:
+                1px solid rgba(255,255,255,0.02);
+
             color: #cbd5e1;
+
             transition: background 0.3s;
         }
 
         tr:hover td {
-            background: rgba(0, 240, 255, 0.03);
+
+            background:
+                rgba(0, 240, 255, 0.03);
         }
 
-        /* Dynamic Classes for Table generated by Python */
-        .buy-signal { color: var(--green-glow); text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
-        .sell-signal { color: var(--red-glow); text-shadow: 0 0 10px rgba(255, 42, 85, 0.5); }
-        .pair-name { color: #fff; font-weight: 800; font-family: 'Rajdhani', sans-serif; font-size: 18px; letter-spacing: 1px;}
+        /* ================================================= */
+        /* TABLE CLASSES */
+        /* ================================================= */
 
-        /* Mobile Adjustments */
+        .buy-signal {
+
+            color: var(--green-glow);
+
+            text-shadow:
+                0 0 10px rgba(0,255,136,0.5);
+        }
+
+        .sell-signal {
+
+            color: var(--red-glow);
+
+            text-shadow:
+                0 0 10px rgba(255,42,85,0.5);
+        }
+
+        .pair-name {
+
+            color: #fff;
+
+            font-weight: 800;
+
+            font-family: 'Rajdhani', sans-serif;
+
+            font-size: 18px;
+
+            letter-spacing: 1px;
+        }
+
+        .cyan-status {
+
+            color: var(--cyan-glow);
+
+            font-weight: 700;
+        }
+
+        /* ================================================= */
+        /* PAIR STATS */
+        /* ================================================= */
+
+        .pair-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(250px, 1fr)
+                );
+
+            gap: 20px;
+
+            width: 100%;
+        }
+
+        .pair-card {
+
+            background: var(--glass-bg);
+
+            border:
+                1px solid rgba(255,255,255,0.08);
+
+            border-radius: 18px;
+
+            padding: 25px;
+
+            text-align: center;
+
+            box-shadow:
+                0 15px 30px rgba(0,0,0,0.4);
+        }
+
+        .p-name {
+
+            font-family: 'Rajdhani', sans-serif;
+
+            font-size: 22px;
+
+            color: #fff;
+
+            margin-bottom: 10px;
+
+            letter-spacing: 2px;
+        }
+
+        .p-wr {
+
+            font-size: 40px;
+
+            font-weight: 800;
+
+            color: var(--green-glow);
+
+            margin-bottom: 10px;
+        }
+
+        .p-count {
+
+            color: #94a3b8;
+
+            margin-bottom: 10px;
+        }
+
+        .p-rr {
+
+            color: var(--cyan-glow);
+
+            font-weight: 700;
+        }
+
+        /* ================================================= */
+        /* MOBILE */
+        /* ================================================= */
+
         @media(max-width: 800px) {
-            .hud-wrapper { flex-direction: column; gap: 20px; }
-            .hud-wrapper::before { display: none; }
-            h1.brand-title { font-size: 28px; letter-spacing: 6px; }
-            .table-wrap { overflow-x: auto; }
-            table { min-width: 700px; }
+
+            .hud-wrapper {
+
+                flex-direction: column;
+
+                gap: 20px;
+            }
+
+            .hud-wrapper::before {
+
+                display: none;
+            }
+
+            h1.brand-title {
+
+                font-size: 28px;
+
+                letter-spacing: 6px;
+            }
+
+            .table-wrap {
+
+                overflow-x: auto;
+            }
+
+            table {
+
+                min-width: 700px;
+            }
         }
+
     </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
+    <!-- ============================================= -->
+    <!-- HEADER -->
+    <!-- ============================================= -->
+
     <header>
-        <h1 class="brand-title">QUANTUM SIGNAL PRO</h1>
+
+        <h1 class="brand-title">
+            QUANTUM SIGNAL PRO
+        </h1>
+
         <div class="ai-scanner-badge">
-            <span style="color:var(--green-glow); animation: pulse-chip 1.5s infinite;">●</span> LIVE
+
+            <span
+                style="
+                color:var(--green-glow);
+                animation:pulse-chip 1.5s infinite;
+                "
+            >
+                ●
+            </span>
+
+            LIVE
         </div>
+
     </header>
 
+    <!-- ============================================= -->
+    <!-- HUD -->
+    <!-- ============================================= -->
+
     <div class="hud-wrapper">
+
         <div class="hud-card">
-            <small>TOTAL SIGNALS</small>
-            <h2 class="cyan-text">{{TOTAL}}</h2>
+
+            <small>
+                TOTAL SIGNALS
+            </small>
+
+            <h2 class="cyan-text">
+                {{TOTAL}}
+            </h2>
+
         </div>
 
         <div class="neural-chip"></div>
 
         <div class="hud-card">
-            <small>WIN RATE</small>
-            <h2 class="green-text">{{WINRATE}}</h2>
+
+            <small>
+                WIN RATE
+            </small>
+
+            <h2 class="green-text">
+                {{WINRATE}}
+            </h2>
+
         </div>
+
+        <div class="hud-card">
+
+            <small>
+                AVG RR
+            </small>
+
+            <h2 class="cyan-text">
+                {{AVG_RR}}
+            </h2>
+
+        </div>
+
     </div>
+
+    <!-- ============================================= -->
+    <!-- MONITOR -->
+    <!-- ============================================= -->
 
     <div class="monitoring-strip">
-        <div class="wave">Monitoring Markets...</div>
-        <p>Last Scan: {{LAST_SCAN}}</p>
+
+        <div class="wave">
+            Monitoring Markets...
+        </div>
+
+        <p>
+            Last Scan: {{LAST_SCAN}}
+        </p>
+
     </div>
+
+    <!-- ============================================= -->
+    <!-- TABS -->
+    <!-- ============================================= -->
 
     <div class="nav-tabs">
-        <button class="tab-btn active" onclick="showTab('active', this)">ACTIVE</button>
-        <button class="tab-btn" onclick="showTab('history', this)">HISTORY</button>
-        <button class="tab-btn" onclick="showTab('stats', this)">STATS</button>
+
+        <button
+            class="tab-btn active"
+            onclick="showTab('active', this)"
+        >
+            ACTIVE
+        </button>
+
+        <button
+            class="tab-btn"
+            onclick="showTab('history', this)"
+        >
+            HISTORY
+        </button>
+
+        <button
+            class="tab-btn"
+            onclick="showTab('stats', this)"
+        >
+            STATS
+        </button>
+
     </div>
 
-    <!-- ACTIVE TAB -->
-    <div id="active" class="tab-content active-tab">
-        <div class="engine-banner">LIVE ENGINE: 1D TREND + H4 RANGE + 5M ENTRY</div>
+    <!-- ============================================= -->
+    <!-- ACTIVE -->
+    <!-- ============================================= -->
+
+    <div
+        id="active"
+        class="tab-content active-tab"
+    >
+
+        <div class="engine-banner">
+
+            LIVE ENGINE:
+            1D TREND + H4 RANGE + 5M ENTRY
+
+        </div>
+
         <div class="table-wrap">
+
             <table>
+
                 <thead>
+
                     <tr>
+
                         <th>PAIR</th>
+
                         <th>SIGNAL</th>
+
                         <th>ENTRY</th>
+
                         <th>SL</th>
+
                         <th>TP</th>
+
                         <th>RR</th>
+
                         <th>STATUS</th>
+
                     </tr>
+
                 </thead>
+
                 <tbody>
-                    <!-- Example of how Python should format the string passed to {{ACTIVE_SIGNALS}} -->
-                    <!-- <tr><td class="pair-name">BTC/USD</td><td class="sell-signal">SELL</td><td>67450.0</td><td>68000.0</td><td>66350.0</td><td>1:1.5</td><td class="buy-signal">RUNNING</td></tr> -->
+
                     {{ACTIVE_SIGNALS}}
+
                 </tbody>
+
             </table>
+
         </div>
+
     </div>
 
-    <!-- HISTORY TAB -->
-    <div id="history" class="tab-content">
+    <!-- ============================================= -->
+    <!-- HISTORY -->
+    <!-- ============================================= -->
+
+    <div
+        id="history"
+        class="tab-content"
+    >
+
         <div class="table-wrap">
+
             <table>
+
                 <thead>
+
                     <tr>
+
                         <th>PAIR</th>
+
                         <th>SIGNAL</th>
+
                         <th>ENTRY</th>
+
                         <th>SL</th>
+
                         <th>TP</th>
+
                         <th>RR</th>
+
                         <th>RESULT</th>
+
                     </tr>
+
                 </thead>
+
                 <tbody>
+
                     {{SIGNALS}}
+
                 </tbody>
+
             </table>
+
         </div>
+
     </div>
 
-    <!-- STATS TAB -->
-    <div id="stats" class="tab-content">
-        <div class="engine-banner">PAIR PERFORMANCE MATRIX</div>
-        <!-- Wrap your pair stats in a grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; width: 100%;">
-            {{PAIR_STATS}}
-        </div>
-    </div>
-
-</div>
-
-<script>
-    // Tab switching logic
-    function showTab(tabId, button) {
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active-tab');
-        });
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-
-        document.getElementById(tabId).classList.add('active-tab');
-        button.classList.add('active');
-    }
-
-    // Ping notification logic
-    let previousSignals = document.querySelectorAll("tbody tr").length;
-
-    setInterval(() => {
-        let currentSignals = document.querySelectorAll("tbody tr").length;
-
-        if(currentSignals > previousSignals) {
-            // Mobile Vibration trigger
-            if(navigator.vibrate) {
-                navigator.vibrate([300, 150, 300]);
-            }
-            // Sound trigger
-            const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-            audio.play().catch(e => console.log("Audio play blocked by browser until user interacts."));
-            
-            previousSignals = currentSignals;
-        }
-    }, 30000);
-</script>
-
-</body>
-</html>
+    <!-- ============================================= -->
+    <!-- STATS -->
+    <!--
