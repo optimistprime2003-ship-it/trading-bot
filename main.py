@@ -369,12 +369,66 @@ def evaluate_active_trades(db):
     return db
 
 # =========================================================
+# SCAN AND UPDATE
+# Runs the strategy engine, adds new signals to active trades
+# if they don't already exist, and saves everything.
+# =========================================================
+
+def scan_and_update(db):
+    """
+    Runs engine.check_strategies() and adds any new signals
+    to the active trades list (avoiding duplicates based on
+    symbol + type + entry price).
+    """
+
+    try:
+        signals = engine.check_strategies(engine.daily_ranges)
+    except Exception as e:
+        logging.error(f"Strategy scan error: {e}")
+        return db
+
+    for signal in signals:
+        # Check for duplicate active trade
+        is_duplicate = False
+        for active in db.get("active", []):
+            if (
+                active.get("symbol") == signal["symbol"]
+                and active.get("type") == signal["type"]
+                and active.get("entry") == signal["entry"]
+            ):
+                is_duplicate = True
+                break
+
+        if not is_duplicate:
+            db["active"].append(signal)
+            logging.info(
+                f"New Signal: {signal['symbol']} | "
+                f"{signal['type']} | {signal['strat']}"
+            )
+
+    return db
+
+# =========================================================
 # DASHBOARD
 # =========================================================
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
 
+    db = load_data()
+
+    # Evaluate active trades first (close any that hit TP/SL)
+    db = evaluate_active_trades(db)
+
+    # Run strategy scan and add new signals
+    db = scan_and_update(db)
+
+    # Save updated state to disk
+    save_data(db)
+
+    # Reload stats after potential new history entries
+    # (evaluate_active_trades may have added closed trades to history)
+    # We need to recalculate stats
     db = load_data()
 
     try:
@@ -426,6 +480,12 @@ def dashboard():
             f"</tr>"
         )
 
+    if not history_rows:
+        history_rows = (
+            '<tr><td colspan="7" class="empty-state">'
+            'No history yet</td></tr>'
+        )
+
     # =====================================================
     # ACTIVE TABLE ROWS
     # =====================================================
@@ -454,6 +514,12 @@ def dashboard():
             f"</tr>"
         )
 
+    if not active_rows:
+        active_rows = (
+            '<tr><td colspan="7" class="empty-state">'
+            'No active signals</td></tr>'
+        )
+
     # =====================================================
     # PAIR STATS CARDS
     # =====================================================
@@ -475,6 +541,15 @@ def dashboard():
             f"<div class='p-count'>{p_data['total']} Signals</div>"
             f"<div class='p-count'>RR: {round(p_data['rr'], 2)}</div>"
             f"</div>"
+        )
+
+    if not pair_html:
+        pair_html = (
+            '<div class="pair-card">'
+            '<div class="p-name">No Data</div>'
+            '<div class="p-wr">—</div>'
+            '<div class="p-count">0 Signals</div>'
+            '</div>'
         )
 
     # =====================================================
@@ -501,6 +576,12 @@ def dashboard():
             f"</tr>"
         )
 
+    if not strategy_html:
+        strategy_html = (
+            '<tr><td colspan="5" class="empty-state">'
+            'No strategy data yet</td></tr>'
+        )
+
     # =====================================================
     # GLOBAL WIN RATE
     # =====================================================
@@ -511,5 +592,32 @@ def dashboard():
         else 0
     )
 
-    last_scan = datetime.now().strftime("%Y-%m-%
-            
+    last_scan = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # =====================================================
+    # TEMPLATE VARIABLE INJECTION
+    # =====================================================
+
+    html = template.replace("{{TOTAL}}", str(stats["total"]))
+    html = html.replace("{{WINRATE}}", f"{global_wr:.1f}%")
+    html = html.replace("{{LAST_SCAN}}", last_scan)
+    html = html.replace("{{ACTIVE_SIGNALS}}", active_rows)
+    html = html.replace("{{TOTAL_WINS}}", str(stats["wins"]))
+    html = html.replace("{{TOTAL_LOSSES}}", str(stats["losses"]))
+    html = html.replace("{{RR_WON}}", str(stats["rr_won"]))
+    html = html.replace("{{RR_LOST}}", str(stats["rr_lost"]))
+    html = html.replace("{{NET_RR}}", str(stats["net_rr"]))
+    html = html.replace("{{PROFIT_FACTOR}}", str(stats["profit_factor"]))
+    html = html.replace("{{EXPECTANCY}}", str(stats["expectancy"]))
+    html = html.replace("{{PAIR_STATS}}", pair_html)
+    html = html.replace("{{STRATEGY_ROWS}}", strategy_html)
+    html = html.replace("{{SIGNALS}}", history_rows)
+
+    return HTMLResponse(content=html)
+
+# =========================================================
+# SERVER ENTRY POINT
+# =========================================================
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
