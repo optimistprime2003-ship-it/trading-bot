@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quantum Signal Pro</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="[fonts.googleapis.com](https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap)" rel="stylesheet">
 
 <style>
 
@@ -184,7 +184,7 @@ body::before{
     border-radius:25px;
     border:1px solid rgba(255,255,255,0.05);
     background:#020b18;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
 }
 
 .table-wrap::-webkit-scrollbar{
@@ -194,7 +194,7 @@ body::before{
 .table{
     width:100%;
     border-collapse:collapse;
-    min-width:600px; /* Reduced from 700px for better mobile fit */
+    min-width:600px;
 }
 
 .table th{
@@ -239,12 +239,14 @@ body::before{
     color: var(--muted);
     font-weight: 500;
     padding: 30px !important;
+    text-align: center;
 }
 
 .stats-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:18px;
+    margin-bottom:22px;
 }
 
 .small-card{
@@ -266,6 +268,54 @@ body::before{
 .small-card p{
     font-size:34px;
     font-weight:800;
+}
+
+.section-title{
+    font-family:'Rajdhani',sans-serif;
+    font-size:18px;
+    letter-spacing:4px;
+    color:#7c8ba1;
+    margin:30px 0 15px;
+    text-align:center;
+}
+
+.pair-stats-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:22px;
+}
+
+.pair-card{
+    background:linear-gradient(to bottom,#071424,#04101d);
+    border:1px solid rgba(0,229,255,0.15);
+    border-radius:18px;
+    padding:18px 12px;
+    text-align:center;
+}
+
+.pair-card .p-name{
+    color:var(--cyan);
+    font-family:'Rajdhani',sans-serif;
+    letter-spacing:2px;
+    font-size:16px;
+    margin-bottom:8px;
+    font-weight:700;
+}
+
+.pair-card .p-wr{
+    color:white;
+    text-shadow:0 0 12px var(--gold);
+    font-size:26px;
+    font-weight:800;
+    margin-bottom:6px;
+}
+
+.pair-card .p-count{
+    color:#7b8aa3;
+    font-size:12px;
+    letter-spacing:1px;
+    margin-top:4px;
 }
 
 .history-item{
@@ -290,6 +340,10 @@ body::before{
     margin-bottom:25px;
     color:#dbeafe;
     font-size:18px;
+}
+
+.setting-row:last-child{
+    margin-bottom:0;
 }
 
 .bottom-nav{
@@ -343,6 +397,7 @@ body::before{
     .bottom-nav { padding: 12px 5px 18px; }
     .nav-btn { font-size: 11px; }
     .nav-icon { font-size: 22px; }
+    .pair-card .p-wr { font-size: 22px; }
 }
 
 </style>
@@ -360,26 +415,29 @@ body::before{
     </div>
 </div>
 
+<!-- ===================== HOME PAGE ===================== -->
 <div id="home" class="page active-page">
 
 <div class="card">
     <div class="metric-label">TOTAL SIGNALS</div>
-    <div class="metric-value cyan">0</div>
+    <div class="metric-value cyan">{{TOTAL}}</div>
 </div>
 
 <div class="card">
     <div class="metric-label">WIN RATE</div>
-    <div class="metric-value green">0.0%</div>
+    <div class="metric-value green">{{WINRATE}}</div>
 </div>
 
 <div class="monitor-box">
     <h3>Monitoring Markets...</h3>
-    <p>Last Scan: <span id="scan-time">Updating...</span></p>
+    <p>Last Scan: <span id="scan-time">{{LAST_SCAN}}</span></p>
 </div>
 
 <div class="engine-banner">
     LIVE ENGINE: PIN BAR + HYBRID FAKE BREAKOUT
 </div>
+
+<div class="section-title">ACTIVE SIGNALS</div>
 
 <div class="table-wrap">
 <table class="table">
@@ -395,53 +453,92 @@ body::before{
 </tr>
 </thead>
 <tbody>
-<tr>
-<td colspan="7" class="empty-state">No Active Signals</td>
-</tr>
+{{ACTIVE_SIGNALS}}
 </tbody>
 </table>
 </div>
 
 </div>
 
+<!-- ===================== ANALYTICS PAGE ===================== -->
 <div id="analytics" class="page">
+
+<div class="engine-banner">
+ANALYTICS
+</div>
 
 <div class="stats-grid">
 
 <div class="small-card">
 <h4>TOTAL WINS</h4>
-<p class="green">0</p>
+<p class="green">{{TOTAL_WINS}}</p>
 </div>
 
 <div class="small-card">
 <h4>TOTAL LOSSES</h4>
-<p class="red">0</p>
+<p class="red">{{TOTAL_LOSSES}}</p>
 </div>
 
 <div class="small-card">
 <h4>RR WON</h4>
-<p class="green">0.0</p>
+<p class="green">{{RR_WON}}</p>
 </div>
 
 <div class="small-card">
 <h4>RR LOST</h4>
-<p class="red">0.0</p>
+<p class="red">{{RR_LOST}}</p>
 </div>
 
 <div class="small-card">
 <h4>NET RR</h4>
-<p class="cyan">0.0</p>
+<p class="cyan">{{NET_RR}}</p>
 </div>
 
 <div class="small-card">
 <h4>ACCURACY</h4>
-<p class="gold">0.0%</p>
+<p class="gold">{{WINRATE}}</p>
+</div>
+
+<div class="small-card">
+<h4>PROFIT FACTOR</h4>
+<p class="cyan">{{PROFIT_FACTOR}}</p>
+</div>
+
+<div class="small-card">
+<h4>EXPECTANCY</h4>
+<p class="gold">{{EXPECTANCY}}</p>
 </div>
 
 </div>
 
+<div class="section-title">PAIR PERFORMANCE</div>
+
+<div class="pair-stats-wrap">
+{{PAIR_STATS}}
 </div>
 
+<div class="section-title">STRATEGY BREAKDOWN</div>
+
+<div class="table-wrap">
+<table class="table">
+<thead>
+<tr>
+<th>STRATEGY</th>
+<th>TOTAL</th>
+<th>WINS</th>
+<th>LOSSES</th>
+<th>WR</th>
+</tr>
+</thead>
+<tbody>
+{{STRATEGY_ROWS}}
+</tbody>
+</table>
+</div>
+
+</div>
+
+<!-- ===================== HISTORY PAGE ===================== -->
 <div id="history" class="page">
 
 <div class="engine-banner">
@@ -462,15 +559,14 @@ HISTORY LOG
 </tr>
 </thead>
 <tbody>
-<tr>
-<td colspan="7" class="empty-state">History is empty</td>
-</tr>
+{{SIGNALS}}
 </tbody>
 </table>
 </div>
 
 </div>
 
+<!-- ===================== SETTINGS PAGE ===================== -->
 <div id="settings" class="page">
 
 <div class="engine-banner">
@@ -486,22 +582,27 @@ SETTINGS
 
 <div class="setting-row">
 <span>Trading Engine</span>
-<span>ACTIVE</span>
+<span style="color:var(--green)">ACTIVE</span>
 </div>
 
 <div class="setting-row">
 <span>Pin Bar Strategy</span>
-<span>ON</span>
+<span style="color:var(--green)">ON</span>
 </div>
 
 <div class="setting-row">
 <span>Hybrid Fakeout</span>
-<span>ON</span>
+<span style="color:var(--green)">ON</span>
 </div>
 
 <div class="setting-row">
 <span>Live Monitoring</span>
-<span>ENABLED</span>
+<span style="color:var(--green)">ENABLED</span>
+</div>
+
+<div class="setting-row">
+<span>Auto Refresh</span>
+<span>30 Seconds</span>
 </div>
 
 </div>
@@ -510,6 +611,7 @@ SETTINGS
 
 </div>
 
+<!-- ===================== BOTTOM NAV ===================== -->
 <div class="bottom-nav">
 
 <button class="nav-btn active" onclick="showPage('home',this)">
@@ -536,33 +638,56 @@ SETTINGS
 
 <script>
 
-function showPage(id,btn){
+function showPage(id, btn){
 
-    document.querySelectorAll('.page').forEach(page=>{
+    document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active-page');
     });
 
-    document.querySelectorAll('.nav-btn').forEach(button=>{
+    document.querySelectorAll('.nav-btn').forEach(button => {
         button.classList.remove('active');
     });
 
     document.getElementById(id).classList.add('active-page');
     btn.classList.add('active');
+
+    // Preserve active page across the auto-reload below
+    try {
+        localStorage.setItem('activePage', id);
+    } catch (e) {}
 }
 
-// Generate dynamic timestamp for Last Scan
-function updateScanTime() {
-    const now = new Date();
-    const formatted = now.toISOString().slice(0, 19).replace('T', ' ');
-    document.getElementById('scan-time').textContent = formatted;
-}
-updateScanTime();
+// Restore last active page after auto-reload
+(function restorePage(){
+    try {
+        const saved = localStorage.getItem('activePage');
+        if (saved && document.getElementById(saved)) {
+            document.querySelectorAll('.page').forEach(p =>
+                p.classList.remove('active-page')
+            );
+            document.getElementById(saved).classList.add('active-page');
 
-setInterval(()=>{
+            document.querySelectorAll('.nav-btn').forEach(b =>
+                b.classList.remove('active')
+            );
+
+            const map = {home:0, analytics:1, history:2, settings:3};
+            const idx = map[saved];
+            if (typeof idx === 'number') {
+                const btns = document.querySelectorAll('.nav-btn');
+                if (btns[idx]) btns[idx].classList.add('active');
+            }
+        }
+    } catch (e) {}
+})();
+
+// Auto-refresh every 30 seconds to pull latest scan results
+setInterval(() => {
     location.reload();
-},30000);
+}, 30000);
 
 </script>
 
 </body>
-</html>
+    </html>
+    
